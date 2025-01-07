@@ -332,8 +332,8 @@ def run(param: PredictionParameter):
 def main():
     from run_cli import run_cli
 
-    params = run_cli()
-    run(params)
+    param = run_cli()
+    run(param)
 
 
 if __name__ == "__main__":

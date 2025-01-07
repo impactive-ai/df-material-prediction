@@ -1,17 +1,27 @@
-from datetime import date
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+
+import pandas as pd
+import warnings
+
+from run_cli import PredictionParameter
+
+
+def train_and_predict(param: PredictionParameter):
+    # TODO impl
+    ref_date = param.ref_date
+    input_path = param.input_path
+    ext_path_list = param.ext_path_list
+    output_path = param.output_path
+
+    print(ref_date, input_path, ext_path_list, output_path)
+
 
 def main():
-    import argparse
-    from util import valid_date
+    from run_cli import run_cli
 
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("ref_date", type=valid_date, help="reference date")
-    args = parser.parse_args()
-    ref_date: date = args.ref_date
-    ref_date = ref_date.replace(day=1)
-
-    run(ref_date=ref_date)
+    param = run_cli()
+    train_and_predict(param)
 
 
 if __name__ == "__main__":
