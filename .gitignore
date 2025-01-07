@@ -1,0 +1,14 @@
+.venv/
+.DS_Store
+.ipynb_checkpoints/
+spark_driver/
+dist/
+*.egg-info/
+build/
+.idea/
+work/
+*.ipynb
+mlruns/
+spark-warehouse/
+__pycache__/
+source/

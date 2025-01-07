@@ -1,0 +1,13 @@
+name: Predict material price - food
+
+python_env: python_env.yaml
+
+entry_points:
+  main:
+    parameters:
+      dt: string
+      input: string
+      ext: string
+      output: string
+    command: "python main.py -d {dt} -i {input} -x {ext} -o {output}"
+  
