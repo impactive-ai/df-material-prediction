@@ -59,12 +59,19 @@ mlflow run . -P dt=2024-12-01 \
 
 ## 데이터 규격
 
+가격 데이터 식별자(grain_id) 목록은
+[원자재 가격 수집 정보](https://docs.google.com/spreadsheets/d/1qnfH9_XJ2fgVKI8OayiOXnExvzFqzXkkYQGiJGAoFRk/edit?usp=sharing)에서 확인 가능하다
+
 ### input - 입력 데이터
 
-v(=value)는 이 프로젝트에서 해당 원물의 가격을 의미함
+v(=value)는 이 프로젝트에서 해당 원물의 가격을 의미함.  
+데이터의 수집 주기가 월간이었다면 `v_*` 값 모두 동일한 값으로 출력됨
 
 - grain_id: 예측 구분 식별자
 - dt: 시점(yyyy-MM-dd 형태)
+- v_open: 주기 시작값 (시가)
+- v_close: 주기 종료값 (종가)
+- v_sum: 합산값
 - v_mean: 평균값
 - v_min: 최소값
 - v_max: 최대값
@@ -76,12 +83,12 @@ dt 필드는 공통이며 나머지 컬럼들은 사용하는 데이터셋마다
 
 ### output - 예측 결과 데이터
 
-기존 가이드 문서 참조
+[가이드 문서](https://impactive-ai.notion.site/Deepflow-Forecast-14a5aced1ed38059ba11cb6d0bf53432?pvs=4) 참조
 
 ## 코드 기여 방법
 
 - 로컬에서 mlflow run 실행하여 정상적으로 동작하는지 확인 하고 커밋 합니다
 - Black 을 이용하여 코드 포매팅 후 커밋 합니다
 - 사용하지 않는 import 는 제거 합니다
-- 작업 브랜치 생성 후 main 브랜치로의 PR을 날려 코드리뷰 후 머지 합니다
+- 작업 브랜치 생성 후 main 브랜치로의 머지 PR을 날려 코드리뷰 후 머지 합니다
 - 디펜던시 추가가 있는 경우 프로젝트 루트의 requirements.txt 에 추가하고 자신이 작업하는 프로젝트 디렉토리의 python_env.yaml 에도 추가 합니다.
