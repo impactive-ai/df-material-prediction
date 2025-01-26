@@ -29,11 +29,6 @@ def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
     target_name, data_packing, df_processed, y_test_updated, test_length = (fixed_parameters_packing)
     x_train, y_train, x_valid, y_valid, x_test, y_test = data_packing
 
-    # DF for Result
-    df_best_params = pd.DataFrame()
-    df_metric_valid_result = pd.DataFrame()
-    df_metric_test_result = pd.DataFrame()
-
     def objective(trial):
         params = {
             "n_estimators": trial.suggest_int("n_estimators", 1, 200, step=10),
@@ -59,6 +54,11 @@ def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
         mse = mean_squared_error(y_valid, pred_optuna)
         r2 = r2_score(y_valid, pred_optuna)
         return r2 / mse
+
+    # DF for Result
+    df_best_params = pd.DataFrame()
+    df_metric_valid_result = pd.DataFrame()
+    df_metric_test_result = pd.DataFrame()
 
     for iter_idx in tqdm(range(0, total_iter)):
         # Optuna Tuning

@@ -15,9 +15,7 @@ valid_set_length = 3
 test_set_length = 7
 
 
-def train_and_predict(
-    param: PredictionParameter, target_name, valid_length, test_length
-):
+def loading_data(param: PredictionParameter):
     ref_date = param.ref_date
     input_path = param.input_path
     ext_path_list = param.ext_path_list
@@ -26,11 +24,14 @@ def train_and_predict(
 
     # Load Data
     df = pd.read_parquet(input_path)
+    return df
 
+
+def train_and_predict(df, target_name):
     # Pre-processing
     df_processed, df_lag_result = pre_processing(df, target_name)
     x_train, y_train, x_valid, y_valid, x_test, y_test = data_split(
-        df_processed, target_name, valid_length, test_length
+        df_processed, target_name, valid_set_length, test_set_length
     )
 
     # Recursive Setting
@@ -39,10 +40,9 @@ def train_and_predict(
     x_test[[col for col in df_lag_result.columns if col in x_test.columns]] = (np.nan)  # Lag Reset
     df_tmp = pd.concat([y_train, y_valid])
     df_tmp = pd.concat([df_processed["dt"], df_tmp], axis=1)
-    df_tmp = df_tmp.iloc[-(test_length * 2) :]
+    df_tmp = df_tmp.iloc[-(test_set_length * 2) :]
     df_tmp = making_lag_features(df_tmp, target_name)  # Lag Making
     x_test.update(df_tmp)  # Lag Update
-    del df_tmp
 
     # HyperParameters Optimization
     data_packing = x_train, y_train, x_valid, y_valid, x_test, y_test
@@ -51,10 +51,9 @@ def train_and_predict(
         data_packing,
         df_processed,
         y_test_updated,
-        test_length,
+        test_set_length,
     )
     metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(fixed_parameters_packing, 300, 50)
-    del data_packing, fixed_parameters_packing
     result_packing = metric_valid_set, metric_test_set, df_best_params
     return result_packing
 
@@ -63,8 +62,9 @@ def main():
     from run_cli import run_cli
 
     param = run_cli()
-    result = train_and_predict(param, target, valid_set_length, test_set_length)
-    saving_result(target, result, "")
+    df = loading_data(param)
+    result_prediction = train_and_predict(df, target)
+    saving_result(target, result_prediction, "")
     print("All Process Done")
 
 
