@@ -3,22 +3,8 @@ import pandas as pd
 lag_num = 6
 
 
-def pre_processing(df, target):
-    # "date"를 월의 첫 날짜로 변경 - 추후 삭제
-    df["Date"] = (pd.to_datetime(df["Date"]) - pd.offsets.MonthEnd() + pd.offsets.MonthBegin(1))
-    # Rename - 추후 삭제
-    df = df.rename(columns={"Date": "dt"})
-
+def pre_processing(df, target, target_list):
     # Target(y)
-    target_list = [
-        "IronOre",
-        "Nickel",
-        "Coal",
-        "CokingCoal",
-        "Steel",
-        "Copper",
-        "Aluminum",
-    ]
     df_y = pd.DataFrame(df[target])
 
     # Features(X)

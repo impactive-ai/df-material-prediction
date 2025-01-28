@@ -4,6 +4,7 @@ import warnings
 
 from run_cli import PredictionParameter
 from preprocessing import pre_processing, data_split, making_lag_features
+from features_forecasting import forecasting_features
 from optimization import optimizing_parameters
 from result import saving_result
 
@@ -11,6 +12,15 @@ warnings.filterwarnings("ignore")
 
 
 target = "IronOre"  # fix this
+target_list = [
+    "IronOre",
+    "Nickel",
+    "Coal",
+    "CokingCoal",
+    "Steel",
+    "Copper",
+    "Aluminum",
+]
 valid_set_length = 3
 test_set_length = 7
 
@@ -24,12 +34,16 @@ def loading_data(param: PredictionParameter):
 
     # Load Data
     df = pd.read_parquet(input_path)
+    # 추후 삭제 - "date"를 월의 첫 날짜로 변경
+    df["Date"] = (pd.to_datetime(df["Date"]) - pd.offsets.MonthEnd() + pd.offsets.MonthBegin(1))
+    # 추후 삭제 - Rename
+    df = df.rename(columns={"Date": "dt"})
     return df
 
 
 def train_and_predict(df, target_name):
     # Pre-processing
-    df_processed, df_lag_result = pre_processing(df, target_name)
+    df_processed, df_lag_result = pre_processing(df, target_name, target_list)
     x_train, y_train, x_valid, y_valid, x_test, y_test = data_split(
         df_processed, target_name, valid_set_length, test_set_length
     )
@@ -37,7 +51,9 @@ def train_and_predict(df, target_name):
     # Recursive Setting
     y_test_updated = y_test.copy()
     y_test_updated[target_name] = np.nan  # y Reset
-    x_test[[col for col in df_lag_result.columns if col in x_test.columns]] = (np.nan)  # Lag Reset
+    x_test[[col for col in df_lag_result.columns if col in x_test.columns]] = (
+        np.nan
+    )  # Lag Reset
     df_tmp = pd.concat([y_train, y_valid])
     df_tmp = pd.concat([df_processed["dt"], df_tmp], axis=1)
     df_tmp = df_tmp.iloc[-(test_set_length * 2) :]
@@ -45,6 +61,7 @@ def train_and_predict(df, target_name):
     x_test.update(df_tmp)  # Lag Update
 
     # HyperParameters Optimization
+    print("Hyperparameter Optimization - Start")
     data_packing = x_train, y_train, x_valid, y_valid, x_test, y_test
     fixed_parameters_packing = (
         target_name,
@@ -55,6 +72,9 @@ def train_and_predict(df, target_name):
     )
     metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(fixed_parameters_packing, 300, 50)
     result_packing = metric_valid_set, metric_test_set, df_best_params
+    
+    print("Hyperparameter Optimization - End")
+    
     return result_packing
 
 
@@ -63,8 +83,14 @@ def main():
 
     param = run_cli()
     df = loading_data(param)
+
+    # Feature Forecasting
+    df_expanded = forecasting_features(df, target_list)
+
+    # Main Model
     result_prediction = train_and_predict(df, target)
     saving_result(target, result_prediction, "")
+
     print("All Process Done")
 
 
