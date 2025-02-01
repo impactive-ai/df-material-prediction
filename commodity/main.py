@@ -5,8 +5,9 @@ import warnings
 from run_cli import PredictionParameter
 from preprocessing import pre_processing, data_split, making_lag_features
 from features_forecasting import forecasting_features
-from optimization import optimizing_parameters
-from result import saving_result
+from optimization import optimizing_parameters, merging_pred_actual
+from result import saving_result, calculating_metric, saving_plot_n_result
+from future_forecasting import loading_best_params, recalling_best, forecasting_future
 
 warnings.filterwarnings("ignore")
 
@@ -51,9 +52,7 @@ def train_and_predict(df, target_name):
     # Recursive Setting
     y_test_updated = y_test.copy()
     y_test_updated[target_name] = np.nan  # y Reset
-    x_test[[col for col in df_lag_result.columns if col in x_test.columns]] = (
-        np.nan
-    )  # Lag Reset
+    x_test[[col for col in df_lag_result.columns if col in x_test.columns]] = (np.nan)  # Lag Reset
     df_tmp = pd.concat([y_train, y_valid])
     df_tmp = pd.concat([df_processed["dt"], df_tmp], axis=1)
     df_tmp = df_tmp.iloc[-(test_set_length * 2) :]
@@ -72,26 +71,54 @@ def train_and_predict(df, target_name):
     )
     metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(fixed_parameters_packing, 300, 50)
     result_packing = metric_valid_set, metric_test_set, df_best_params
-    
+
     print("Hyperparameter Optimization - End")
-    
     return result_packing
 
 
 def main():
     from run_cli import run_cli
 
+    # Data Load
     param = run_cli()
     df = loading_data(param)
 
     # Feature Forecasting
     df_expanded = forecasting_features(df, target_list)
 
-    # Main Model
-    result_prediction = train_and_predict(df, target)
-    saving_result(target, result_prediction, "")
+    # Optimization
+    optimization_flag = False  # fix this
+    if optimization_flag == True:  # 최적화가 필요할 때
+        result_prediction = train_and_predict(df, target)
+        saving_result(target, result_prediction, "")
+    elif optimization_flag == False:  # 최적화 결과가 이미 존재할 때
+        print("Hyperparameter Optimization - Skip")
+        result_prediction = loading_best_params(target, "250131_210436_")  # fix this
+        print("Optimized Hyperparameter - Loaded")
 
-    print("All Process Done")
+    # Recall Best Model
+    df_pred_test, df_actual_test = recalling_best(
+        df_expanded,
+        target,
+        target_list,
+        result_prediction,
+        valid_set_length,
+        test_set_length,
+    )
+
+    # Future Forecasting
+    df_pred_future = forecasting_future(
+        df_expanded,
+        target,
+        target_list,
+        result_prediction,
+        valid_set_length,
+        test_set_length,
+    )
+
+    # Result Saving
+    saving_plot_n_result(target, df_pred_test, df_pred_future, df_expanded)
+    print("All Process - Done")
 
 
 if __name__ == "__main__":

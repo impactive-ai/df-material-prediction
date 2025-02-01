@@ -10,7 +10,7 @@ from result import calculating_metric
 optuna.logging.set_verbosity(optuna.logging.ERROR)
 
 
-def _predicting(model, df_input):
+def predicting(model, df_input):
     pred = model.predict(df_input)
     df_pred = pd.DataFrame(pred)
     df_pred[df_pred < 0] = 0
@@ -18,7 +18,7 @@ def _predicting(model, df_input):
     return df_pred
 
 
-def _merging_pred_actual(df_actual, df_pred, target_name):
+def merging_pred_actual(df_actual, df_pred, target_name):
     df_actual = df_actual.rename(columns={target_name: "Actual"})
     df_actual = df_actual.reset_index().drop(["index"], axis=1)
     df_output = pd.concat([df_actual, df_pred], axis=1)
@@ -26,7 +26,7 @@ def _merging_pred_actual(df_actual, df_pred, target_name):
 
 
 def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
-    target_name, data_packing, df_processed, y_test_updated, test_length = (fixed_parameters_packing)
+    target_name, data_packing, df_processed, y_test_updated, test_length = fixed_parameters_packing
     x_train, y_train, x_valid, y_valid, x_test, y_test = data_packing
 
     def objective(trial):
@@ -73,8 +73,8 @@ def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
         model.fit(x_train, y_train)
 
         # Prediction - ValidSet
-        df_pred_valid = _predicting(model, x_valid)
-        df_pred_actual_valid = _merging_pred_actual(y_valid, df_pred_valid, target_name)
+        df_pred_valid = predicting(model, x_valid)
+        df_pred_actual_valid = merging_pred_actual(y_valid, df_pred_valid, target_name)
         df_metric_valid = calculating_metric(df_pred_actual_valid, target_name)
         df_metric_valid_result = pd.concat([df_metric_valid_result, df_metric_valid])
 
@@ -82,7 +82,7 @@ def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
         for iter_idx_pred in range(0, test_length):
             what_to_predict = pd.DataFrame(x_test.iloc[iter_idx_pred,]).T
             # Prediction - TestSet
-            df_pred_test = _predicting(model, what_to_predict)
+            df_pred_test = predicting(model, what_to_predict)
             y_test_updated.iloc[iter_idx_pred] = df_pred_test  # y Update
             # Lag Making
             df_tmp = pd.concat([y_train, y_valid])
@@ -93,7 +93,7 @@ def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
             # Lag Update
             x_test.update(df_tmp)
         y_test_updated = (y_test_updated.rename(columns={target_name: "Prediction"}).reset_index().drop(["index"], axis=1))
-        df_pred_actual_test = _merging_pred_actual(y_test, y_test_updated, target_name)
+        df_pred_actual_test = merging_pred_actual(y_test, y_test_updated, target_name)
         df_metric_test = calculating_metric(df_pred_actual_test, target_name)
         df_metric_test_result = pd.concat([df_metric_test_result, df_metric_test])
 

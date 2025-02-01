@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.dates import date2num
 from datetime import datetime
 from sklearn.metrics import (
     mean_squared_error,
@@ -91,3 +93,92 @@ def saving_result(
         index=True,
     )
     print(f"Result Saved {saving_date}_{saving_time}")
+
+
+def saving_plot_n_result(target, df_pred_test, df_pred_future, df_expanded):
+    plot_num = (len(df_pred_future) * 2) + 4
+    df_plot = df_expanded[["dt", target]].iloc[-plot_num:]
+    df_plot = df_plot.rename(columns={target: "Actual"})
+    df_plot = df_plot.reset_index().drop(["index"], axis=1)
+    # df_pred_test
+    df_tmp = df_plot.iloc[-(len(df_pred_future) * 2) : -len(df_pred_future)]
+    df_tmp = df_tmp.reset_index().drop(["index"], axis=1)
+    df_pred_test = df_pred_test.reset_index().drop(["index"], axis=1)
+    df_pred_test = pd.concat([df_tmp, df_pred_test], axis=1)
+    df_pred_test["Target"] = target
+    df_pred_test["Tag"] = "TestSet"
+    # df_pred_future
+    df_tmp = df_plot.iloc[-len(df_pred_future) :]
+    df_tmp = df_tmp.reset_index().drop(["index"], axis=1)
+    df_pred_future = df_pred_future.reset_index().drop(["index"], axis=1)
+    df_pred_future = pd.concat([df_tmp, df_pred_future], axis=1)
+    df_pred_future["Target"] = target
+    df_pred_future["Tag"] = "FutureForecasting"
+    # df_plot
+    df_plot = df_plot.set_index("dt")
+    df_plot["Prediction"] = np.nan
+    df_plot["Target"] = target
+    df_plot["Tag"] = ""
+    df_pred_test = df_pred_test.set_index("dt")
+    df_pred_future = df_pred_future.set_index("dt")
+    df_plot.update(df_pred_test[["Prediction", "Target", "Tag"]])
+    df_plot.update(df_pred_future[["Prediction", "Target", "Tag"]])
+    df_plot = df_plot.reset_index()
+
+    # Plot
+    plt.figure(figsize=(16, 7))
+    plt.plot(df_plot["dt"], df_plot["Actual"], label="Actual", marker="o")
+    plt.plot(df_plot["dt"], df_plot["Prediction"], label="Prediction", marker="o")
+    # Vertical Line - TestSet
+    testset_starting_date = df_plot.iloc[-((len(df_pred_future) * 2))]["dt"]
+    vertical_line_test = testset_starting_date.strftime("%Y-%m-%d")
+    vertical_line_test_dt = datetime.strptime(vertical_line_test, "%Y-%m-%d")
+    plt.axvline(x=date2num(vertical_line_test_dt), color="black", linestyle="--", alpha=0.5)
+    plt.text(
+        date2num(vertical_line_test_dt),
+        df_plot["Actual"].min(),
+        " TestSet",
+        color="black",
+        va="top",
+        ha="left",
+    )
+    # Vertical Line - Future Forecasting
+    forecasting_starting_date = df_plot.iloc[-(len(df_pred_future) + 1)]["dt"]
+    vertical_line_forecasting = forecasting_starting_date.strftime("%Y-%m-%d")
+    vertical_line_forecasting_dt = datetime.strptime(vertical_line_forecasting, "%Y-%m-%d")
+    plt.axvline(x=date2num(vertical_line_forecasting_dt), color="red", linestyle="--", alpha=0.5)
+    plt.text(
+        date2num(vertical_line_forecasting_dt),
+        df_plot["Actual"].min(),
+        " FutureForecasting",
+        color="red",
+        va="top",
+        ha="left",
+    )
+    # Label & Title
+    plt.xlabel("dt")
+    plt.ylabel("Price")
+    plt.title(target)
+    plt.legend()
+    plt.grid(True)
+
+    # Plot Saving
+    save_path = f"./output/{target}/Result/"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    plot_file_name = "Plot_PredActual.png"
+    saving_dir = save_path + plot_file_name
+    plt.savefig(saving_dir)
+
+    # DF Saving
+    df_export = df_plot.iloc[-(len(df_pred_future) * 2) :]
+    df_export = df_export.reset_index().drop(["index"], axis=1)
+    df_export["Actual"] = round(df_export["Actual"], 3)
+    df_export["Prediction"] = round(df_export["Prediction"], 3)
+    df_export.to_excel(
+        save_path + "Values_PredActual.xlsx",
+        sheet_name="Sheet1",
+        index=False,
+    )
+    print("All Results are saved")
+    return df_export
