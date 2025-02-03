@@ -11,7 +11,8 @@ from future_forecasting import loading_best_params, recalling_best, forecasting_
 
 warnings.filterwarnings("ignore")
 
-
+optimization_flag = True  # fix this  ("True", "False")  # 최적화 진행 여부
+model_name = "LGBM"  # fix this  ("LGBM", "XGB", "Qboost")
 target = "IronOre"  # fix this
 target_list = [
     "IronOre",
@@ -69,9 +70,10 @@ def train_and_predict(df, target_name):
         y_test_updated,
         test_set_length,
     )
-    metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(fixed_parameters_packing, 300, 50)
+    metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(
+        model_name, fixed_parameters_packing, 300, 50
+    )
     result_packing = metric_valid_set, metric_test_set, df_best_params
-
     print("Hyperparameter Optimization - End")
     return result_packing
 
@@ -87,18 +89,29 @@ def main():
     df_expanded = forecasting_features(df, target_list)
 
     # Optimization
-    optimization_flag = False  # fix this
     if optimization_flag == True:  # 최적화가 필요할 때
         result_prediction = train_and_predict(df, target)
-        saving_result(target, result_prediction, "")
+        saving_result(target, model_name, result_prediction, "")
     elif optimization_flag == False:  # 최적화 결과가 이미 존재할 때
         print("Hyperparameter Optimization - Skip")
-        result_prediction = loading_best_params(target, "250131_210436_")  # fix this
+        result_prediction = loading_best_params(
+            target,
+            model_name,
+            # "250203_060213_",  # LGBM
+            # "250203_060434_",  # XGB
+            # "250203_080114_",  # Qboost
+        )
         print("Optimized Hyperparameter - Loaded")
+
+    # Best Index
+    df_metric_valid, df_metric_test, df_best_params = result_prediction
+    best_index = df_metric_test["nRMSE(Max-Min)"].idxmin()
+    result_prediction = df_metric_valid, df_metric_test, df_best_params, best_index
 
     # Recall Best Model
     df_pred_test, df_actual_test = recalling_best(
         df_expanded,
+        model_name,
         target,
         target_list,
         result_prediction,
@@ -109,6 +122,7 @@ def main():
     # Future Forecasting
     df_pred_future = forecasting_future(
         df_expanded,
+        model_name,
         target,
         target_list,
         result_prediction,
@@ -117,7 +131,7 @@ def main():
     )
 
     # Result Saving
-    saving_plot_n_result(target, df_pred_test, df_pred_future, df_expanded)
+    saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_expanded)
     print("All Process - Done")
 
 

@@ -58,13 +58,14 @@ def calculating_metric(df_metric, idx_name):
 
 def saving_result(
     target_name,
+    model_name,
     result_packed,
     output_memo,
 ):
     metric_valid_set, metric_test_set, df_best_params = result_packed
 
     # Saving Path
-    save_path = f"./output/{target_name}/Metric_Parameters"
+    save_path = f"./output/{target_name}/{model_name}/Metric_Parameters"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     # Date Saved
@@ -95,7 +96,7 @@ def saving_result(
     print(f"Result Saved {saving_date}_{saving_time}")
 
 
-def saving_plot_n_result(target, df_pred_test, df_pred_future, df_expanded):
+def saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_expanded):
     plot_num = (len(df_pred_future) * 2) + 4
     df_plot = df_expanded[["dt", target]].iloc[-plot_num:]
     df_plot = df_plot.rename(columns={target: "Actual"})
@@ -163,7 +164,7 @@ def saving_plot_n_result(target, df_pred_test, df_pred_future, df_expanded):
     plt.grid(True)
 
     # Plot Saving
-    save_path = f"./output/{target}/Result/"
+    save_path = f"./output/{target}/{model_name}/Result/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     plot_file_name = "Plot_PredActual.png"
@@ -180,5 +181,14 @@ def saving_plot_n_result(target, df_pred_test, df_pred_future, df_expanded):
         sheet_name="Sheet1",
         index=False,
     )
+
+    # Metric Saving
+    df_metric_testset = calculating_metric(df_pred_test, "TestSet")
+    df_metric_testset.to_excel(
+        save_path + "Metric_TestSet.xlsx",
+        sheet_name="Sheet1",
+        index=True,
+    )
+
     print("All Results are saved")
     return df_export

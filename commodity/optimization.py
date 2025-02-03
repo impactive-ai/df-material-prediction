@@ -1,5 +1,7 @@
 import pandas as pd
 from lightgbm import LGBMRegressor
+from xgboost import XGBRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from tqdm import tqdm
 import optuna
 from sklearn.metrics import mean_squared_error, r2_score
@@ -25,35 +27,89 @@ def merging_pred_actual(df_actual, df_pred, target_name):
     return df_output
 
 
-def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
+def optimizing_parameters(
+    model_name, fixed_parameters_packing, total_iter, study_trials
+):
     target_name, data_packing, df_processed, y_test_updated, test_length = fixed_parameters_packing
     x_train, y_train, x_valid, y_valid, x_test, y_test = data_packing
 
-    def objective(trial):
-        params = {
-            "n_estimators": trial.suggest_int("n_estimators", 1, 200, step=10),
-            "learning_rate": trial.suggest_float("learning_rate", 0, 1),
-            "max_depth": trial.suggest_int("max_depth", 3, 15),
-            "min_child_samples": trial.suggest_int("min_child_samples", 1, 20),
-            "subsample": trial.suggest_float("subsample", 0.5, 1),
-            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1),
-            "reg_alpha": trial.suggest_float("reg_alpha", 0, 1),
-            "reg_lambda": trial.suggest_float("reg_lambda", 0, 1),
-            "num_leaves": trial.suggest_int("num_leaves", 10, 100),
-            "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 10),
-            "subsample_freq": trial.suggest_int("subsample_freq", 1, 10),
-            "random_state": trial.suggest_int("random_state", 42, 42),
-            "verbose": -1,
-        }
-        # Model
-        model_optuna = LGBMRegressor(**params)
-        model_optuna.fit(x_train, y_train)
-        # Prediction
-        pred_optuna = model_optuna.predict(x_valid)
-        # Loss Function
-        mse = mean_squared_error(y_valid, pred_optuna)
-        r2 = r2_score(y_valid, pred_optuna)
-        return r2 / mse
+    # Preserving
+    y_test_updated_saving = y_test_updated.copy()
+    x_test_saving = x_test.copy()
+
+    if model_name == "LGBM":
+
+        def objective(trial):
+            params = {
+                "n_estimators": trial.suggest_int("n_estimators", 1, 200, step=10),
+                "learning_rate": trial.suggest_float("learning_rate", 0, 1),
+                "max_depth": trial.suggest_int("max_depth", 3, 15),
+                "min_child_samples": trial.suggest_int("min_child_samples", 1, 20),
+                "subsample": trial.suggest_float("subsample", 0.5, 1),
+                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1),
+                "reg_alpha": trial.suggest_float("reg_alpha", 0, 1),
+                "reg_lambda": trial.suggest_float("reg_lambda", 0, 1),
+                "num_leaves": trial.suggest_int("num_leaves", 10, 100),
+                "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 10),
+                "subsample_freq": trial.suggest_int("subsample_freq", 1, 10),
+                "random_state": trial.suggest_int("random_state", 42, 42),
+                "verbose": -1,
+            }
+            # Model
+            model_optuna = LGBMRegressor(**params)
+            model_optuna.fit(x_train, y_train)
+            # Prediction
+            pred_optuna = model_optuna.predict(x_valid)
+            # Loss Function
+            mse = mean_squared_error(y_valid, pred_optuna)
+            r2 = r2_score(y_valid, pred_optuna)
+            return r2 / mse
+
+    elif model_name == "XGB":
+
+        def objective(trial):
+            params = {
+                "n_estimators": trial.suggest_int("n_estimators", 1, 200, step=10),
+                "learning_rate": trial.suggest_float("learning_rate", 0, 1),
+                "max_depth": trial.suggest_int("max_depth", 3, 15),
+                "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 10),
+                "subsample": trial.suggest_float("subsample", 0.5, 1),
+                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1),
+                "gamma": trial.suggest_float("gamma", 0, 1),
+                "random_state": trial.suggest_int("random_state", 42, 42),
+            }
+            # Model
+            model_optuna = XGBRegressor(**params)
+            model_optuna.fit(x_train, y_train)
+            # Prediction
+            pred_optuna = model_optuna.predict(x_valid)
+            # Loss Function
+            mse = mean_squared_error(y_valid, pred_optuna)
+            r2 = r2_score(y_valid, pred_optuna)
+            return r2 / mse
+
+    elif model_name == "Qboost":
+
+        def objective(trial):
+            params = {
+                "n_estimators": trial.suggest_int("n_estimators", 1, 200, step=10),
+                "learning_rate": trial.suggest_float("learning_rate", 0, 1),
+                "max_depth": trial.suggest_int("max_depth", 3, 15),
+                "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
+                "max_features": trial.suggest_float("max_features", 0.1, 1.0),
+                "subsample": trial.suggest_float("subsample", 0.5, 1),
+                "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
+                "random_state": trial.suggest_int("random_state", 42, 42),
+            }
+            # Model
+            model_optuna = GradientBoostingRegressor(**params)
+            model_optuna.fit(x_train, y_train)
+            # Prediction
+            pred_optuna = model_optuna.predict(x_valid)
+            # Loss Function
+            mse = mean_squared_error(y_valid, pred_optuna)
+            r2 = r2_score(y_valid, pred_optuna)
+            return r2 / mse
 
     # DF for Result
     df_best_params = pd.DataFrame()
@@ -61,16 +117,28 @@ def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
     df_metric_test_result = pd.DataFrame()
 
     for iter_idx in tqdm(range(0, total_iter)):
+        # Reset
+        x_test = x_test_saving.copy()
+        y_test_updated = y_test_updated_saving.copy()
+
         # Optuna Tuning
         study = optuna.create_study(direction="maximize")
         study.optimize(objective, n_trials=study_trials)
+        
         # Best Parameter
         best_params = study.best_params
         df_best_params = pd.concat([df_best_params, pd.DataFrame(best_params, index=[iter_idx])])
 
         # Model w/ Optuna
-        model = LGBMRegressor(**best_params, verbose=-1)
-        model.fit(x_train, y_train)
+        if model_name == "LGBM":
+            model = LGBMRegressor(**best_params, verbose=-1)
+            model.fit(x_train, y_train)
+        elif model_name == "XGB":
+            model = XGBRegressor(**best_params)
+            model.fit(x_train, y_train)
+        elif model_name == "Qboost":
+            model = GradientBoostingRegressor(**best_params)
+            model.fit(x_train, y_train)
 
         # Prediction - ValidSet
         df_pred_valid = predicting(model, x_valid)
@@ -102,13 +170,18 @@ def optimizing_parameters(fixed_parameters_packing, total_iter, study_trials):
     df_metric_test_result = df_metric_test_result.reset_index().drop(["index"], axis=1)
 
     # Sorting - TestSet
-    metric_test_set = df_metric_test_result.sort_values(by="nRMSE(Max-Min)").reset_index()
+    metric_test_set = df_metric_test_result.sort_values(by="nRMSE(Max-Min)")
+    metric_test_set = metric_test_set.reset_index()
     # Sorting - ValidSet
     index_order = metric_test_set["index"].values.tolist()
     metric_valid_set = df_metric_valid_result.reset_index()
-    metric_valid_set = (metric_valid_set.set_index("index").reindex(index_order).reset_index())
+    metric_valid_set = metric_valid_set.set_index("index")
+    metric_valid_set = metric_valid_set.reindex(index_order)
+    metric_valid_set = metric_valid_set.reset_index()
     # Sorting - Parameters
     df_best_params = df_best_params.reset_index()
-    df_best_params = (df_best_params.set_index("index").reindex(index_order).reset_index())
+    df_best_params = df_best_params.set_index("index")
+    df_best_params = df_best_params.reindex(index_order)
+    df_best_params = df_best_params.reset_index()
 
     return metric_valid_set, metric_test_set, df_best_params
