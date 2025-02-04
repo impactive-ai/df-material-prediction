@@ -21,7 +21,7 @@ products_mapping = {
         "model": RandomForestRegressor(random_state=42),
         "scaler": "mm",
         "param_grid": rf_param_grid,
-     },
+    },
     "tomato": {
         "model": XGBRegressor(random_state=42),
         "scaler": "standard",
@@ -37,7 +37,7 @@ products_mapping = {
         "scaler": "standard",
         "param_grid": rf_param_grid,
     },
- }
+}
 
 # Parameters for each product
 params_mapping = {
@@ -147,9 +147,8 @@ params_mapping = {
         7: {
             "n_list": [7, 8, 9, 14],
             "window": 14,
-            "best_params": {'max_depth': 5, 'n_estimators': 100},
-        }
-
+            "best_params": {"max_depth": 5, "n_estimators": 100},
+        },
     },
     "tomato": {
         1: {
@@ -299,37 +298,37 @@ params_mapping = {
         1: {
             "n_list": [1, 2, 3, 7, 9],
             "window": 13,
-            "best_params": {'max_depth': 10, 'n_estimators': 300},
+            "best_params": {"max_depth": 10, "n_estimators": 300},
         },
         2: {
             "n_list": [2, 4, 6, 7, 8, 9, 10],
             "window": 12,
-            "best_params": {'max_depth': 10, 'n_estimators': 350},
+            "best_params": {"max_depth": 10, "n_estimators": 350},
         },
         3: {
             "n_list": [3, 4, 5, 7, 8, 9],
             "window": 12,
-            "best_params": {'max_depth': 20, 'n_estimators': 100},
+            "best_params": {"max_depth": 20, "n_estimators": 100},
         },
         4: {
             "n_list": [4, 5, 7, 12],
             "window": 10,
-            "best_params": {'max_depth': 15, 'n_estimators': 100},
+            "best_params": {"max_depth": 15, "n_estimators": 100},
         },
         5: {
             "n_list": [5, 12, 13],
             "window": 13,
-            "best_params": {'max_depth': 15, 'n_estimators': 100},
+            "best_params": {"max_depth": 15, "n_estimators": 100},
         },
         6: {
             "n_list": [6, 8, 11, 12, 13, 14],
             "window": 17,
-            "best_params": {'max_depth': 20, 'n_estimators': 200},
+            "best_params": {"max_depth": 20, "n_estimators": 200},
         },
         7: {
             "n_list": [7, 8, 9, 10, 15],
             "window": 16,
-            "best_params": {'max_depth': 10, 'n_estimators': 300},
+            "best_params": {"max_depth": 10, "n_estimators": 300},
         },
     },
 }
@@ -339,5 +338,6 @@ grain_id_mapping = {
     "strawberry": "_22600:FD",
     "tomato": "_22500:FD",
     "SMP": "_SMP:FD",
-    "rice": "_111FF:FD",
+    # "rice": "_111FF:FD",
+    "rice": "_111EE:FD",
 }

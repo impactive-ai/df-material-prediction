@@ -10,4 +10,3 @@ entry_points:
       ext: string
       output: string
     command: "python main.py -d {dt} -i {input} -x {ext} -o {output}"
-  

@@ -37,9 +37,7 @@ def _add_features(df, lag, n_list=None, window=None):
         df[f"v_mw_mean_{window}"] = (
             df["v_mean"].shift(lag).rolling(window=window).mean()
         )
-        df[f"v_mw_std_{window}"] = (
-            df["v_mean"].shift(lag).rolling(window=window).std()
-        )
+        df[f"v_mw_std_{window}"] = df["v_mean"].shift(lag).rolling(window=window).std()
 
     df.dropna(inplace=True)
 
@@ -52,37 +50,41 @@ def _monthly_shift(df: pd.DataFrame, suffix="", lag=0):
     df[f"v_high_{lag}{suffix}"] = df["v_high"].shift(lag)
     df[f"v_std_{lag}{suffix}"] = df["v_std"].shift(lag)
 
-    df.drop(columns=['v_low', 'v_high', 'v_std'], inplace=True)
+    df.drop(columns=["v_low", "v_high", "v_std"], inplace=True)
     df.dropna(inplace=True)
 
     return df
 
 
 def _add_november_rows(df):
-    from datetime import date
-    
-    start_year = df['dt'].min().year
-    end_year = df['dt'].max().year
+    from datetime import datetime
 
-    november_dates = [date(year, 11, 1) for year in range(start_year, end_year + 1)]
+    start_year = df["dt"].min().year
+    end_year = df["dt"].max().year
 
-    last_date = df['dt'].max()
-    if last_date < date(end_year, 11, 1):
+    november_dates = [datetime(year, 11, 1) for year in range(start_year, end_year + 1)]
+
+    last_date = df["dt"].max()
+    if last_date < datetime(end_year, 11, 1):
         november_dates = november_dates[:-1]
 
-    november_df = pd.DataFrame({'dt': november_dates})
-    november_df['v_mean'] = 2000
-    november_df['v_low'] = 0
-    november_df['v_high'] = 0
-    november_df['v_std'] = 0
+    november_df = pd.DataFrame({"dt": november_dates})
+    november_df["v_mean"] = 2000
+    november_df["v_low"] = 0
+    november_df["v_high"] = 0
+    november_df["v_std"] = 0
 
-    final_df = pd.concat([df, november_df], ignore_index=True).sort_values(by='dt').reset_index(drop=True)
+    final_df = (
+        pd.concat([df, november_df], ignore_index=True)
+        .sort_values(by="dt")
+        .reset_index(drop=True)
+    )
 
     return final_df
 
 
 def _add_predict_row(df, lag):
-    last_date = df.dt.iloc[-1] 
+    last_date = df.dt.iloc[-1]
 
     for m in range(1, lag + 1):
         predict_date = last_date + relativedelta(months=m)
@@ -96,7 +98,7 @@ def _add_predict_row(df, lag):
             }
         )
         df = pd.concat([df, predict_row], ignore_index=True)
-        
+
     return df
 
 
@@ -115,7 +117,7 @@ def _load_source(filepath: str):
         raise ValueError("dt column not found")
 
     pdf["dt"] = pd.to_datetime(pdf["dt"])
-    pdf = pdf.set_index("dt")
+    # pdf = pdf.set_index("dt")
 
     return pdf
 
@@ -132,21 +134,79 @@ def _merge_external(*, extdata_path_list: list[str], dt_from, dt_to, freq="MS"):
     return out_pdf
 
 
+EXT_COLUMNS = [
+    "dt",
+    "KOSIS022",
+    "KOSIS023",
+    "KOSIS024",
+    "KOSIS025",
+    "KOSIS026",
+    "KOSIS027",
+    "KOSIS028",
+    "KOSIS029",
+    "KOSIS030",
+    "KOSIS031",
+    "KOSIS032",
+    "KOSIS033",
+    "KOSIS034",
+    "KOSIS056",
+    "KOSIS077",
+    "KOSIS087",
+    "KOSIS088",
+    "KOSIS089",
+    "KOSIS090",
+    "KOSIS091",
+    "KOSIS092",
+    "KOSIS093",
+    "KOSIS094",
+    "KOSIS095",
+    "KOSIS096",
+    "KOSIS097",
+    "KOSIS098",
+    "KOSIS099",
+    "KOSIS100",
+    "KOSIS101",
+    "KOSIS102",
+    "KOSIS103",
+    "KOSIS104",
+    "KOSIS105",
+    "KOSIS106",
+    "KOSIS107",
+    "KOSIS108",
+    "KOSIS109",
+    "KOSIS110",
+    "평균기온(°C)",
+    "평균최고기온(°C)",
+    "평균최저기온(°C)",
+    "최고기온(°C)",
+    "최저기온(°C)",
+    "평균해면기압(hPa)",
+    "평균수증기압(hPa)",
+    "평균상대습도(%)",
+    "월합강수량(00~24h만)(mm)",
+    "평균풍속(m/s)",
+    "최대풍속(m/s)",
+    "평균운량(1/10)",
+    "일조율(%)",
+    "합계 일사량(MJ/m2)",
+    "평균 최저초상온도(°C)",
+    "평균지면온도(°C)",
+]
+
+
 def _add_external_data(df, ext_list, ref_date, lag=1):
     df_exo = _merge_external(
         extdata_path_list=ext_list,
         dt_from="2000-01-01",
         dt_to=ref_date,
     )
-    external_data_list = pd.read_csv("source/external_data_used_20241129.csv")
-    external_data_list = external_data_list.values.flatten()  # projction
-    df_exo = df_exo[external_data_list]
-    
-    df_exo["dt"] = pd.to_datetime(df_exo["dt"]).apply(
-        lambda x: (x + relativedelta(months=lag)).date()
-        )
+
+    df_exo = df_exo[EXT_COLUMNS]
+
+    # df_exo["dt"] = df_exo["dt"].apply(lambda x: x + relativedelta(months=lag))
+    df_exo["dt"] = df_exo["dt"] + pd.DateOffset(months=lag)
     df = pd.merge(df, df_exo, on="dt", how="inner")
-    
+
     return df
 
 
@@ -156,7 +216,7 @@ def _count_weekends(dt):
     last_day = (first_day + pd.offsets.MonthEnd(0)).date()
     dates = pd.date_range(first_day, last_day)
     weekends = dates[dates.weekday >= 5]  # 5는 토요일, 6은 일요일
-    
+
     return len(weekends)
 
 
@@ -168,7 +228,7 @@ def _count_holidays(dt):
     last_day = (first_day + pd.offsets.MonthEnd(0)).date()
     dates = pd.date_range(first_day, last_day)
     holidays_in_month = [date for date in dates if date in kr_holidays]
-    
+
     return len(holidays_in_month)
 
 
@@ -184,6 +244,8 @@ def preprocess_data(
 ):
     """
     데이터 전처리
+    :param input_path: 입력 데이터 경로
+    :param ext_list: 외부 데이터 경로 목록
     :param product: 품목 종류
     :param lag:
     :param ref_month:
@@ -192,16 +254,20 @@ def preprocess_data(
     :param is_test:
     :return: 전처리된 데이터
     """
-    
+
     from config import grain_id_mapping
-    
+
     raw_df = pd.read_parquet(input_path)
-    raw_df =  raw_df[raw_df['grain_id'] == grain_id_mapping[product]].drop_duplicates()
-    
+    raw_df = raw_df[raw_df["grain_id"] == grain_id_mapping[product]].drop_duplicates()
+
     if product == "SMP":
         raw_df.loc[raw_df["v_count"] == 1, "v_std"] = 0
-    raw_df.drop(columns=["grain_id", "source_freq", "v_open", "v_close", "v_count"], inplace=True)
-    df = raw_df[raw_df["dt"] < ref_month]
+    raw_df.drop(
+        columns=["grain_id", "source_freq", "v_open", "v_close", "v_count"],
+        inplace=True,
+    )
+
+    df = raw_df[raw_df["dt"].dt.date < ref_month].copy()
 
     if is_test:
         df = _add_predict_row(df, lag)
@@ -227,13 +293,16 @@ def preprocess_data(
     df = _add_features(df, n_list[0], n_list, window)
     df = _add_external_data(df, ext_list, ref_month, lag=n_list[0])
 
+    # 불용 컬럼 제거
+    df = df.drop(columns=["dt_min", "dt_max"])
+
     return df
 
 
 def prepare_data(df, exclude_col: list[str] = None):
     exclude_col = exclude_col or []
     drop_cols = ["v_mean", "dt"] + exclude_col
-    
+
     X = df.drop(columns=drop_cols)
     y = df["v_mean"]
 

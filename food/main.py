@@ -45,7 +45,7 @@ def run_pipeline(
 
     y_hat = best_model.predict(X_test_scaled)
     mape = mean_absolute_percentage_error(y_test, y_hat)
-    
+
     # plot_metrics(y_test, y_hat)
 
     if show_shap:
@@ -71,9 +71,9 @@ def run_pipeline(
                 )
             )
 
-        #plot_path = f"test_result/test_{product}_{month}_months"
+        # plot_path = f"test_result/test_{product}_{month}_months"
         # os.makedirs("test_result", exist_ok=True)
-        
+
         # print_result_plot(
         #     train_df,
         #     test_df,
@@ -97,8 +97,8 @@ def train(
     months_list: list[int],
     params_mapping,
     ref_month,
+    exclude_col: list[str],
 ):
-    import os
     from featurization import preprocess_data
 
     model_dict = {}
@@ -132,7 +132,8 @@ def train(
             scale=config["scaler"],
             show_result=True,
             test_window=6,
-        ) # 최근 6개월 test
+            exclude_col=exclude_col,
+        )  # 최근 6개월 test
 
         for date_, price_test, price_pred in zip(dates, test, pred):
             results.append(
@@ -159,6 +160,7 @@ def predict(
     product,
     this_month,
     months_list: list[int],
+    exclude_col: list[str] = None,
     show_shap=False,
 ):
     from featurization import prepare_data, preprocess_data
@@ -167,6 +169,7 @@ def predict(
     future_predictions = []
     shap_values = None if not show_shap else {}
     lower_ci_90_list, upper_ci_90_list = [], []
+    exclude_col = exclude_col or []
 
     for month in months_list:
         model = models[month]
@@ -184,13 +187,15 @@ def predict(
             is_test=True,
         )
 
-        X, _ = prepare_data(df)
+        X, _ = prepare_data(df, exclude_col)
         X_pred = pd.DataFrame(X.iloc[-1, :].values.reshape(1, -1), columns=X.columns)
         X_scaled = scaler.transform(X_pred)
         y_hat = model.predict(X_scaled)
         future_predictions.extend(y_hat)
 
-        print(f'Predicting for {product}, {month} months ahead: {df["dt"].iloc[-1]}, price: {y_hat[0]:.2f}')
+        print(
+            f'Predicting for {product}, {month} months ahead: {df["dt"].iloc[-1]}, price: {y_hat[0]:.2f}'
+        )
 
         # 신뢰구간 산출
         std_pred, _, _, _, _ = calculate_confidence_intervals(
@@ -223,7 +228,7 @@ def run(param: PredictionParameter):
     from config import products_mapping, params_mapping, grain_id_mapping
     from datetime import date
 
-    horizon = 1
+    horizon = 2
     horizon_list = list(range(1, horizon + 1))  # n개월 예측
 
     this_month = param.ref_date.date()  # 예측 시점 날짜 (년-월)
@@ -232,16 +237,18 @@ def run(param: PredictionParameter):
     combined_shap = []
     combined_test_results = []
     combined_predictions = []
+    exclude_col = []
 
     for product, config in products_mapping.items():
         print(f"Training and saving models for {product}...")
         models, scalers, results = train(
-            param, 
+            param,
             product,
             config,
             horizon_list,
             params_mapping[product],
             this_month,
+            exclude_col,
         )
 
         combined_test_results.append(results)
@@ -260,8 +267,8 @@ def run(param: PredictionParameter):
             product,
             this_month,
             horizon_list,
+            exclude_col,
         )
-
 
         # 예측 결과 정리
         pred = pd.DataFrame(
@@ -289,7 +296,7 @@ def run(param: PredictionParameter):
     # 예측 결과 csv 저장
     if combined_predictions:
         all_predictions = pd.concat(combined_predictions, ignore_index=True)
-        all_predictions.to_csv(f"prediction_{today_fn}.csv", index=False, float_format="%.2f")
+        all_predictions.to_csv(param.output_path, index=False, float_format="%.2f")
         print(f"Predictions saved successfully.")
 
     # SHAP 결과 csv 저장 (True 인 경우)
