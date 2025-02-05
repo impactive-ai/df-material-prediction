@@ -106,7 +106,7 @@ def train(
 
     results = []
 
-    model_instance = config["model"]
+    model_class = config["model"]
     # param_grid = config["param_grid"]
 
     for month in months_list:
@@ -125,7 +125,7 @@ def train(
 
         mape, model, scaler, dates, test, pred = run_pipeline(
             df,
-            model_instance,
+            model_class(random_state=42),
             best_params=params_month[
                 "best_params"
             ],  # 최적화된 best_params 사용 또는 param_grid=param_grid로 파라미터 탐색
@@ -175,7 +175,7 @@ def predict(
         model = models[month]
         scaler = scalers[month]
         params = months_params[month]
-
+        
         df = preprocess_data(
             param.input_path,
             param.ext_path_list,
@@ -228,7 +228,7 @@ def run(param: PredictionParameter):
     from config import products_mapping, params_mapping, grain_id_mapping
     from datetime import date
 
-    horizon = 2
+    horizon = 7
     horizon_list = list(range(1, horizon + 1))  # n개월 예측
 
     this_month = param.ref_date.date()  # 예측 시점 날짜 (년-월)
