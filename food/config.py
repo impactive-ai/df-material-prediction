@@ -13,27 +13,27 @@ rf_param_grid = {"n_estimators": [100, 200, 300, 350], "max_depth": [5, 10, 15, 
 # 제품별 설정
 products_mapping = {
     "cabbage": {
-        "model": XGBRegressor(random_state=42),
+        "model": XGBRegressor,
         "scaler": "standard",
         "param_grid": xgb_param_grid,
     },
     "strawberry": {
-        "model": RandomForestRegressor(random_state=42),
+        "model": RandomForestRegressor,
         "scaler": "mm",
         "param_grid": rf_param_grid,
     },
     "tomato": {
-        "model": XGBRegressor(random_state=42),
+        "model": XGBRegressor,
         "scaler": "standard",
         "param_grid": xgb_param_grid,
     },
     "SMP": {
-        "model": XGBRegressor(random_state=42),
+        "model": XGBRegressor,
         "scaler": "standard",
         "param_grid": xgb_param_grid,
     },
     "rice": {
-        "model": RandomForestRegressor(random_state=42),
+        "model": RandomForestRegressor,
         "scaler": "standard",
         "param_grid": rf_param_grid,
     },
