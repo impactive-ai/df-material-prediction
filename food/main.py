@@ -31,7 +31,14 @@ def run_pipeline(
 
     X_train, y_train = prepare_data(train_df, exclude_col)
     X_test, y_test = prepare_data(test_df, exclude_col)
-    X_train, X_test_scaled, scaler = scale_data(X_train, X_test, scale)
+    try:   
+        X_train, X_test_scaled, scaler = scale_data(X_train, X_test, scale)
+    except ValueError as e:
+        if "Found array with 0 sample(s)" in str(e):
+            print("데이터 부족: test_window 크기를 조정하거나 예측 시점을 변경해주세요")
+            return None, None, None, '-', '', ''
+        else:
+            raise
 
     if best_params is None:
         from util import run_model
@@ -176,6 +183,8 @@ def predict(
         scaler = scalers[month]
         params = months_params[month]
         
+        if model is None: continue
+        
         df = preprocess_data(
             param.input_path,
             param.ext_path_list,
@@ -194,7 +203,7 @@ def predict(
         future_predictions.extend(y_hat)
 
         print(
-            f'Predicting for {product}, {month} months ahead: {df["dt"].iloc[-1]}, price: {y_hat[0]:.2f}'
+            f'Predicting for {product}, {month} months ahead of {df["dt"].iloc[-1]}, price: {y_hat[0]:.2f}'
         )
 
         # 신뢰구간 산출
@@ -273,9 +282,9 @@ def run(param: PredictionParameter):
         # 예측 결과 정리
         pred = pd.DataFrame(
             {
-                "snapshot_dt": [this_month] * horizon,
-                "grain_id": [grain_id_mapping[product]] * horizon,
-                "h": list(range(horizon)),
+                "snapshot_dt": [this_month] * len(predictions),
+                "grain_id": [grain_id_mapping[product]] * len(predictions),
+                "h": list(range(len(predictions))),
                 "pred": predictions,
                 "pred_min": [max(x, 0.0) for x in lower_ci_90_list],
                 "pred_max": upper_ci_90_list,
