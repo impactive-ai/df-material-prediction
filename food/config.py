@@ -12,11 +12,11 @@ rf_param_grid = {"n_estimators": [100, 200, 300, 350], "max_depth": [5, 10, 15, 
 
 # 제품별 설정
 products_mapping = {
-    # "cabbage": {
-    #     "model": XGBRegressor,
-    #     "scaler": "standard",
-    #     "param_grid": xgb_param_grid,
-    # },
+    "cabbage": {
+        "model": XGBRegressor,
+        "scaler": "standard",
+        "param_grid": xgb_param_grid,
+    },
     "strawberry": {
         "model": RandomForestRegressor,
         "scaler": "mm",
