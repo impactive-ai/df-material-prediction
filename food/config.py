@@ -12,11 +12,11 @@ rf_param_grid = {"n_estimators": [100, 200, 300, 350], "max_depth": [5, 10, 15, 
 
 # 제품별 설정
 products_mapping = {
-    "cabbage": {
-        "model": XGBRegressor,
-        "scaler": "standard",
-        "param_grid": xgb_param_grid,
-    },
+    # "cabbage": {
+    #     "model": XGBRegressor,
+    #     "scaler": "standard",
+    #     "param_grid": xgb_param_grid,
+    # },
     "strawberry": {
         "model": RandomForestRegressor,
         "scaler": "mm",
@@ -120,34 +120,34 @@ params_mapping = {
             "best_params": {"max_depth": 5, "n_estimators": 100},
         },
         2: {
-            "n_list": [2, 4, 5, 7, 8, 9, 10],
-            "window": 14,
-            "best_params": {"max_depth": 5, "n_estimators": 100},
+            "n_list": [2, 3, 4, 7, 8, 10],
+            "window": 9,
+            "best_params": {"max_depth": 10, "n_estimators": 300},
         },
         3: {
-            "n_list": [3, 4, 5, 8, 9, 10, 11],
-            "window": 14,
-            "best_params": {"max_depth": 10, "n_estimators": 200},
+            "n_list": [3, 5, 7, 8, 9, 10, 11],
+            "window": 6,
+            "best_params": {"max_depth": 10, "n_estimators": 300},
         },
         4: {
-            "n_list": [4, 8, 9, 11, 12],
-            "window": 12,
-            "best_params": {"max_depth": 10, "n_estimators": 100},
+            "n_list": [4, 6, 7, 8],
+            "window": 9,
+            "best_params": {"max_depth": 5, "n_estimators": 100},
         },
         5: {
-            "n_list": [5, 7, 8, 9, 11, 12],
-            "window": 12,
-            "best_params": {"max_depth": 10, "n_estimators": 100},
+            "n_list": [5, 7, 8, 13],
+            "window": 10,
+            "best_params": {"max_depth": 5, "n_estimators": 100},
         },
         6: {
             "n_list": [6, 7, 8, 9],
             "window": 13,
-            "best_params": {"max_depth": 10, "n_estimators": 100},
+            "best_params": {"max_depth": 5, "n_estimators": 100},
         },
         7: {
-            "n_list": [7, 8, 9, 14],
-            "window": 14,
-            "best_params": {"max_depth": 5, "n_estimators": 100},
+            "n_list": [7],
+            "window": 11,
+            "best_params": {"max_depth": 10, "n_estimators": 200},
         },
     },
     "tomato": {
