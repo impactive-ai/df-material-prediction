@@ -30,20 +30,31 @@ def calculating_metric(df_metric, idx_name):
     rmse = np.sqrt(mean_squared_error(df_metric["Actual"], df_metric["Prediction"]))
     df_result.loc[idx_name, "RMSE"] = round(rmse, 2)
     # nRMSE
-    nrmse_mean = np.sqrt(mean_squared_error(df_metric["Actual"], df_metric["Prediction"])) / np.mean(df_metric["Actual"])
+    nrmse_mean = np.sqrt(
+        mean_squared_error(df_metric["Actual"], df_metric["Prediction"])
+    ) / np.mean(df_metric["Actual"])
     df_result.loc[idx_name, "nRMSE(Mean)"] = round(nrmse_mean, 4)
-    nrmse_minmax = np.sqrt(mean_squared_error(df_metric["Actual"], df_metric["Prediction"])) / (df_metric["Actual"].max() - df_metric["Actual"].min())
+    nrmse_minmax = np.sqrt(
+        mean_squared_error(df_metric["Actual"], df_metric["Prediction"])
+    ) / (df_metric["Actual"].max() - df_metric["Actual"].min())
     df_result.loc[idx_name, "nRMSE(Max-Min)"] = round(nrmse_minmax, 4)
     # MAE
     mae = mean_absolute_error(df_metric["Actual"], df_metric["Prediction"])
     df_result.loc[idx_name, "MAE"] = round(mae, 2)
     # nMAE
-    nmae_mean = mean_absolute_error(df_metric["Actual"], df_metric["Prediction"]) / np.mean(df_metric["Actual"])
+    nmae_mean = mean_absolute_error(
+        df_metric["Actual"], df_metric["Prediction"]
+    ) / np.mean(df_metric["Actual"])
     df_result.loc[idx_name, "nMAE(Mean)"] = round(nmae_mean, 4)
-    nmae_minmax = mean_absolute_error(df_metric["Actual"], df_metric["Prediction"]) / (df_metric["Actual"].max() - df_metric["Actual"].min())
+    nmae_minmax = mean_absolute_error(df_metric["Actual"], df_metric["Prediction"]) / (
+        df_metric["Actual"].max() - df_metric["Actual"].min()
+    )
     df_result.loc[idx_name, "nMAE(Max-Min)"] = round(nmae_minmax, 4)
     # MAPE
-    mape = (mean_absolute_percentage_error(df_metric["Actual"], df_metric["Prediction"])* 100)
+    mape = (
+        mean_absolute_percentage_error(df_metric["Actual"], df_metric["Prediction"])
+        * 100
+    )
     df_result.loc[idx_name, "MAPE"] = round(mape, 2)
     # sMAPE
     absolute_errors = np.abs(df_metric["Actual"] - df_metric["Prediction"])
@@ -56,14 +67,41 @@ def calculating_metric(df_metric, idx_name):
     return df_result
 
 
+def saving_essential(
+    target_name,
+    model_name,
+    metric_valid_set,
+    metric_test_set,
+    df_best_params,
+):
+    # Saving Path
+    save_path = f"./output/{target_name}/{model_name}/Metric_Parameters"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    # Saving - Best Parameters
+    df_best_params.to_excel(
+        save_path + f"/Parameters.xlsx",
+        sheet_name="Sheet1",
+        index=True,
+    )
+    # Saving - Metric(Test Set)
+    metric_test_set.to_excel(
+        save_path + f"/Metric_TestSet.xlsx",
+        sheet_name="Sheet1",
+        index=True,
+    )
+    print(f"Result Saved")
+
+
 def saving_result(
     target_name,
     model_name,
-    result_packed,
+    metric_valid_set,
+    metric_test_set,
+    df_best_params,
     output_memo,
 ):
-    metric_valid_set, metric_test_set, df_best_params = result_packed
-
     # Saving Path
     save_path = f"./output/{target_name}/{model_name}/Metric_Parameters"
     if not os.path.exists(save_path):
@@ -96,25 +134,35 @@ def saving_result(
     print(f"Result Saved {saving_date}_{saving_time}")
 
 
-def saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_expanded):
+def saving_plot_n_result(
+    target,
+    model_name,
+    df_pred_test,
+    df_pred_future,
+    df_expanded,
+    result_saving_for_tracking,
+):
     plot_num = (len(df_pred_future) * 2) + 4
     df_plot = df_expanded[["dt", target]].iloc[-plot_num:]
     df_plot = df_plot.rename(columns={target: "Actual"})
-    df_plot = df_plot.reset_index().drop(["index"], axis=1)
+    df_plot = df_plot.reset_index(drop=True)
+
     # df_pred_test
     df_tmp = df_plot.iloc[-(len(df_pred_future) * 2) : -len(df_pred_future)]
-    df_tmp = df_tmp.reset_index().drop(["index"], axis=1)
-    df_pred_test = df_pred_test.reset_index().drop(["index"], axis=1)
+    df_tmp = df_tmp.reset_index(drop=True)
+    df_pred_test = df_pred_test.reset_index(drop=True)
     df_pred_test = pd.concat([df_tmp, df_pred_test], axis=1)
     df_pred_test["Target"] = target
     df_pred_test["Tag"] = "TestSet"
+
     # df_pred_future
     df_tmp = df_plot.iloc[-len(df_pred_future) :]
-    df_tmp = df_tmp.reset_index().drop(["index"], axis=1)
-    df_pred_future = df_pred_future.reset_index().drop(["index"], axis=1)
+    df_tmp = df_tmp.reset_index(drop=True)
+    df_pred_future = df_pred_future.reset_index(drop=True)
     df_pred_future = pd.concat([df_tmp, df_pred_future], axis=1)
     df_pred_future["Target"] = target
     df_pred_future["Tag"] = "FutureForecasting"
+
     # df_plot
     df_plot = df_plot.set_index("dt")
     df_plot["Prediction"] = np.nan
@@ -130,11 +178,14 @@ def saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_ex
     plt.figure(figsize=(16, 7))
     plt.plot(df_plot["dt"], df_plot["Actual"], label="Actual", marker="o")
     plt.plot(df_plot["dt"], df_plot["Prediction"], label="Prediction", marker="o")
+
     # Vertical Line - TestSet
     testset_starting_date = df_plot.iloc[-((len(df_pred_future) * 2))]["dt"]
     vertical_line_test = testset_starting_date.strftime("%Y-%m-%d")
     vertical_line_test_dt = datetime.strptime(vertical_line_test, "%Y-%m-%d")
-    plt.axvline(x=date2num(vertical_line_test_dt), color="black", linestyle="--", alpha=0.5)
+    plt.axvline(
+        x=date2num(vertical_line_test_dt), color="black", linestyle="--", alpha=0.5
+    )
     plt.text(
         date2num(vertical_line_test_dt),
         df_plot["Actual"].min(),
@@ -143,11 +194,16 @@ def saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_ex
         va="top",
         ha="left",
     )
+
     # Vertical Line - Future Forecasting
     forecasting_starting_date = df_plot.iloc[-(len(df_pred_future) + 1)]["dt"]
     vertical_line_forecasting = forecasting_starting_date.strftime("%Y-%m-%d")
-    vertical_line_forecasting_dt = datetime.strptime(vertical_line_forecasting, "%Y-%m-%d")
-    plt.axvline(x=date2num(vertical_line_forecasting_dt), color="red", linestyle="--", alpha=0.5)
+    vertical_line_forecasting_dt = datetime.strptime(
+        vertical_line_forecasting, "%Y-%m-%d"
+    )
+    plt.axvline(
+        x=date2num(vertical_line_forecasting_dt), color="red", linestyle="--", alpha=0.5
+    )
     plt.text(
         date2num(vertical_line_forecasting_dt),
         df_plot["Actual"].min(),
@@ -156,6 +212,7 @@ def saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_ex
         va="top",
         ha="left",
     )
+
     # Label & Title
     plt.xlabel("dt")
     plt.ylabel("Price")
@@ -163,17 +220,20 @@ def saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_ex
     plt.legend()
     plt.grid(True)
 
-    # Plot Saving
+    # Saving Path
     save_path = f"./output/{target}/{model_name}/Result/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    plot_file_name = "Plot_PredActual.png"
-    saving_dir = save_path + plot_file_name
-    plt.savefig(saving_dir)
+
+    # Plot Saving
+    if not result_saving_for_tracking == "False":
+        plot_file_name = "Plot_PredActual.png"
+        saving_dir = save_path + plot_file_name
+        plt.savefig(saving_dir)
 
     # DF Saving
     df_export = df_plot.iloc[-(len(df_pred_future) * 2) :]
-    df_export = df_export.reset_index().drop(["index"], axis=1)
+    df_export = df_export.reset_index(drop=True)
     df_export["Actual"] = round(df_export["Actual"], 3)
     df_export["Prediction"] = round(df_export["Prediction"], 3)
     df_export.to_excel(
@@ -183,12 +243,13 @@ def saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_ex
     )
 
     # Metric Saving
-    df_metric_testset = calculating_metric(df_pred_test, "TestSet")
-    df_metric_testset.to_excel(
-        save_path + "Metric_TestSet.xlsx",
-        sheet_name="Sheet1",
-        index=True,
-    )
+    if not result_saving_for_tracking == "False":
+        df_metric_testset = calculating_metric(df_pred_test, "TestSet")
+        df_metric_testset.to_excel(
+            save_path + "Metric_TestSet.xlsx",
+            sheet_name="Sheet1",
+            index=True,
+        )
 
     print("All Results are saved")
     return df_export

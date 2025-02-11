@@ -5,26 +5,33 @@ import warnings
 from run_cli import PredictionParameter
 from preprocessing import pre_processing, data_split, making_lag_features
 from features_forecasting import forecasting_features
-from optimization import optimizing_parameters, merging_pred_actual
-from result import saving_result, calculating_metric, saving_plot_n_result
-from future_forecasting import loading_best_params, recalling_best, forecasting_future
+from optimization import optimizing_parameters
+from result import saving_essential, saving_result, saving_plot_n_result
+from future_forecasting import recalling_best, forecasting_future
 
 warnings.filterwarnings("ignore")
 
-optimization_flag = True  # fix this  ("True", "False")  # 최적화 진행 여부
-model_name = "LGBM"  # fix this  ("LGBM", "XGB", "Qboost")
-target = "IronOre"  # fix this
-target_list = [
-    "IronOre",
-    "Nickel",
-    "Coal",
-    "CokingCoal",
-    "Steel",
-    "Copper",
-    "Aluminum",
-]
-valid_set_length = 3
-test_set_length = 7
+forecasting_units = "Monthly"  # ("Monthly", "Weekly")
+data_setting = "Fixed"  # ("Fixed", "Manually")
+result_saving_for_tracking = "False"
+
+model_name = "LGBM"  # ("LGBM", "XGB", "Qboost")
+target_list = ["IronOre", "Nickel", "Coal", "CokingCoal", "Steel", "Copper", "Aluminum"]
+target = target_list[0]
+
+if data_setting == "Fixed":
+    if forecasting_units == "Monthly":
+        valid_set_length = 3
+        test_set_length = 7
+        future_length = 7
+    else:
+        valid_set_length = 4
+        test_set_length = 4
+        future_length = 8
+else:
+    valid_set_length = 3  # fill this as you want
+    test_set_length = 7  # fill this as you want
+    future_length = 7  # fill this as you want
 
 
 def loading_data(param: PredictionParameter):
@@ -36,10 +43,14 @@ def loading_data(param: PredictionParameter):
 
     # Load Data
     df = pd.read_parquet(input_path)
-    # 추후 삭제 - "date"를 월의 첫 날짜로 변경
-    df["Date"] = (pd.to_datetime(df["Date"]) - pd.offsets.MonthEnd() + pd.offsets.MonthBegin(1))
-    # 추후 삭제 - Rename
+
+    # 추후 삭제 - from here
+    df["Date"] = (
+        pd.to_datetime(df["Date"]) - pd.offsets.MonthEnd() + pd.offsets.MonthBegin(1)
+    )
     df = df.rename(columns={"Date": "dt"})
+    # 추후 삭제 - to here
+
     return df
 
 
@@ -53,7 +64,9 @@ def train_and_predict(df, target_name):
     # Recursive Setting
     y_test_updated = y_test.copy()
     y_test_updated[target_name] = np.nan  # y Reset
-    x_test[[col for col in df_lag_result.columns if col in x_test.columns]] = (np.nan)  # Lag Reset
+    x_test[[col for col in df_lag_result.columns if col in x_test.columns]] = (
+        np.nan
+    )  # Lag Reset
     df_tmp = pd.concat([y_train, y_valid])
     df_tmp = pd.concat([df_processed["dt"], df_tmp], axis=1)
     df_tmp = df_tmp.iloc[-(test_set_length * 2) :]
@@ -63,19 +76,18 @@ def train_and_predict(df, target_name):
     # HyperParameters Optimization
     print("Hyperparameter Optimization - Start")
     data_packing = x_train, y_train, x_valid, y_valid, x_test, y_test
-    fixed_parameters_packing = (
+    metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(
+        model_name,
         target_name,
         data_packing,
         df_processed,
         y_test_updated,
         test_set_length,
+        300,  # 300
+        50,  # 50
     )
-    metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(
-        model_name, fixed_parameters_packing, 300, 50
-    )
-    result_packing = metric_valid_set, metric_test_set, df_best_params
     print("Hyperparameter Optimization - End")
-    return result_packing
+    return metric_valid_set, metric_test_set, df_best_params
 
 
 def main():
@@ -86,27 +98,23 @@ def main():
     df = loading_data(param)
 
     # Feature Forecasting
-    df_expanded = forecasting_features(df, target_list)
+    df_expanded = forecasting_features(
+        df, target_list, valid_set_length, test_set_length, future_length
+    )
 
     # Optimization
-    if optimization_flag == True:  # 최적화가 필요할 때
-        result_prediction = train_and_predict(df, target)
-        saving_result(target, model_name, result_prediction, "")
-    elif optimization_flag == False:  # 최적화 결과가 이미 존재할 때
-        print("Hyperparameter Optimization - Skip")
-        result_prediction = loading_best_params(
-            target,
-            model_name,
-            # "250203_060213_",  # LGBM
-            # "250203_060434_",  # XGB
-            # "250203_080114_",  # Qboost
+    metric_valid_set, metric_test_set, df_best_params = train_and_predict(df, target)
+    if result_saving_for_tracking == "False":
+        saving_essential(
+            target, model_name, metric_valid_set, metric_test_set, df_best_params
         )
-        print("Optimized Hyperparameter - Loaded")
+    else:
+        saving_result(
+            target, model_name, metric_valid_set, metric_test_set, df_best_params, ""
+        )
 
     # Best Index
-    df_metric_valid, df_metric_test, df_best_params = result_prediction
-    best_index = df_metric_test["nRMSE(Max-Min)"].idxmin()
-    result_prediction = df_metric_valid, df_metric_test, df_best_params, best_index
+    best_index = metric_test_set["nRMSE(Max-Min)"].idxmin()
 
     # Recall Best Model
     df_pred_test, df_actual_test = recalling_best(
@@ -114,7 +122,8 @@ def main():
         model_name,
         target,
         target_list,
-        result_prediction,
+        df_best_params,
+        best_index,
         valid_set_length,
         test_set_length,
     )
@@ -125,13 +134,21 @@ def main():
         model_name,
         target,
         target_list,
-        result_prediction,
+        df_best_params,
+        best_index,
         valid_set_length,
         test_set_length,
     )
 
     # Result Saving
-    saving_plot_n_result(target, model_name, df_pred_test, df_pred_future, df_expanded)
+    saving_plot_n_result(
+        target,
+        model_name,
+        df_pred_test,
+        df_pred_future,
+        df_expanded,
+        result_saving_for_tracking,
+    )
     print("All Process - Done")
 
 

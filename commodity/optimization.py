@@ -22,15 +22,21 @@ def predicting(model, df_input):
 
 def merging_pred_actual(df_actual, df_pred, target_name):
     df_actual = df_actual.rename(columns={target_name: "Actual"})
-    df_actual = df_actual.reset_index().drop(["index"], axis=1)
+    df_actual = df_actual.reset_index(drop=True)
     df_output = pd.concat([df_actual, df_pred], axis=1)
     return df_output
 
 
 def optimizing_parameters(
-    model_name, fixed_parameters_packing, total_iter, study_trials
+    model_name,
+    target_name,
+    data_packing,
+    df_processed,
+    y_test_updated,
+    test_length,
+    total_iter,
+    study_trials,
 ):
-    target_name, data_packing, df_processed, y_test_updated, test_length = fixed_parameters_packing
     x_train, y_train, x_valid, y_valid, x_test, y_test = data_packing
 
     # Preserving
@@ -58,11 +64,14 @@ def optimizing_parameters(
             # Model
             model_optuna = LGBMRegressor(**params)
             model_optuna.fit(x_train, y_train)
+
             # Prediction
             pred_optuna = model_optuna.predict(x_valid)
+
             # Loss Function
             mse = mean_squared_error(y_valid, pred_optuna)
             r2 = r2_score(y_valid, pred_optuna)
+
             return r2 / mse
 
     elif model_name == "XGB":
@@ -81,11 +90,14 @@ def optimizing_parameters(
             # Model
             model_optuna = XGBRegressor(**params)
             model_optuna.fit(x_train, y_train)
+
             # Prediction
             pred_optuna = model_optuna.predict(x_valid)
+
             # Loss Function
             mse = mean_squared_error(y_valid, pred_optuna)
             r2 = r2_score(y_valid, pred_optuna)
+
             return r2 / mse
 
     elif model_name == "Qboost":
@@ -104,14 +116,17 @@ def optimizing_parameters(
             # Model
             model_optuna = GradientBoostingRegressor(**params)
             model_optuna.fit(x_train, y_train)
+
             # Prediction
             pred_optuna = model_optuna.predict(x_valid)
+
             # Loss Function
             mse = mean_squared_error(y_valid, pred_optuna)
             r2 = r2_score(y_valid, pred_optuna)
+
             return r2 / mse
 
-    # DF for Result
+    # Result DF
     df_best_params = pd.DataFrame()
     df_metric_valid_result = pd.DataFrame()
     df_metric_test_result = pd.DataFrame()
@@ -124,10 +139,12 @@ def optimizing_parameters(
         # Optuna Tuning
         study = optuna.create_study(direction="maximize")
         study.optimize(objective, n_trials=study_trials)
-        
+
         # Best Parameter
         best_params = study.best_params
-        df_best_params = pd.concat([df_best_params, pd.DataFrame(best_params, index=[iter_idx])])
+        df_best_params = pd.concat(
+            [df_best_params, pd.DataFrame(best_params, index=[iter_idx])]
+        )
 
         # Model w/ Optuna
         if model_name == "LGBM":
@@ -149,35 +166,42 @@ def optimizing_parameters(
         # Prediction(Recursive) - Test
         for iter_idx_pred in range(0, test_length):
             what_to_predict = pd.DataFrame(x_test.iloc[iter_idx_pred,]).T
+
             # Prediction - TestSet
             df_pred_test = predicting(model, what_to_predict)
             y_test_updated.iloc[iter_idx_pred] = df_pred_test  # y Update
+
             # Lag Making
             df_tmp = pd.concat([y_train, y_valid])
             df_tmp = pd.concat([df_processed["dt"], df_tmp], axis=1)
             df_tmp = df_tmp.iloc[-(test_length * 2) :]
             df_tmp.update(y_test_updated)
             df_tmp = making_lag_features(df_tmp, target_name)
+
             # Lag Update
             x_test.update(df_tmp)
-        y_test_updated = (y_test_updated.rename(columns={target_name: "Prediction"}).reset_index().drop(["index"], axis=1))
+
+        y_test_updated = y_test_updated.rename(columns={target_name: "Prediction"})
+        y_test_updated = y_test_updated.reset_index(drop=True)
         df_pred_actual_test = merging_pred_actual(y_test, y_test_updated, target_name)
         df_metric_test = calculating_metric(df_pred_actual_test, target_name)
         df_metric_test_result = pd.concat([df_metric_test_result, df_metric_test])
 
     # Result
-    df_metric_valid_result = df_metric_valid_result.reset_index().drop(["index"], axis=1)
-    df_metric_test_result = df_metric_test_result.reset_index().drop(["index"], axis=1)
+    df_metric_valid_result = df_metric_valid_result.reset_index(drop=True)
+    df_metric_test_result = df_metric_test_result.reset_index(drop=True)
 
     # Sorting - TestSet
     metric_test_set = df_metric_test_result.sort_values(by="nRMSE(Max-Min)")
     metric_test_set = metric_test_set.reset_index()
+
     # Sorting - ValidSet
     index_order = metric_test_set["index"].values.tolist()
     metric_valid_set = df_metric_valid_result.reset_index()
     metric_valid_set = metric_valid_set.set_index("index")
     metric_valid_set = metric_valid_set.reindex(index_order)
     metric_valid_set = metric_valid_set.reset_index()
+
     # Sorting - Parameters
     df_best_params = df_best_params.reset_index()
     df_best_params = df_best_params.set_index("index")
