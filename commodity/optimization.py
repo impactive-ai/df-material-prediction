@@ -3,6 +3,8 @@ from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from tqdm import tqdm
+import os
+import glob
 import optuna
 from sklearn.metrics import mean_squared_error, r2_score
 
@@ -17,6 +19,7 @@ def predicting(model, df_input):
     df_pred = pd.DataFrame(pred)
     df_pred[df_pred < 0] = 0
     df_pred = df_pred.rename(columns={0: "Prediction"})
+
     return df_pred
 
 
@@ -24,6 +27,7 @@ def merging_pred_actual(df_actual, df_pred, target_name):
     df_actual = df_actual.rename(columns={target_name: "Actual"})
     df_actual = df_actual.reset_index(drop=True)
     df_output = pd.concat([df_actual, df_pred], axis=1)
+
     return df_output
 
 
@@ -209,3 +213,33 @@ def optimizing_parameters(
     df_best_params = df_best_params.reset_index()
 
     return metric_valid_set, metric_test_set, df_best_params
+
+
+def choosing_best_model(target, model_list):
+    df_best_metric = pd.DataFrame()
+
+    for model_name in model_list:
+        # Metric Load
+        path = f"./output/{target}/{model_name}/Metric_Parameters/"
+        metric_file_list = glob.glob(os.path.join(path, "Metric_TestSet*.xlsx"))
+        latest_file = max(metric_file_list)
+        metric_test_set = pd.read_excel(latest_file)
+
+        # Saving Best Model
+        what_to_save = pd.DataFrame(metric_test_set.iloc[0]).T
+        what_to_save["Model"] = model_name
+        df_best_metric = pd.concat([df_best_metric, what_to_save])
+        df_best_metric = df_best_metric.reset_index(drop=True)
+
+    best_index = df_best_metric["nRMSE(Max-Min)"].idxmin()
+    best_model = df_best_metric.iloc[best_index]["Model"]
+
+    # Parameter Load
+    path = f"./output/{target}/{best_model}/Metric_Parameters/"
+    params_file_list = glob.glob(os.path.join(path, "Parameters*.xlsx"))
+    latest_file = max(params_file_list)
+    df_best_params = pd.read_excel(latest_file)
+    df_best_params = df_best_params.drop(["Unnamed: 0"], axis=1)
+    df_best_params = pd.DataFrame(df_best_params.iloc[0]).T
+
+    return best_model, best_index, df_best_params

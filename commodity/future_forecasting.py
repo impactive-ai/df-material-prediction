@@ -3,30 +3,16 @@ import numpy as np
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.utils import resample
 
 from preprocessing import pre_processing, data_split, making_lag_features
 from optimization import predicting
 
 
-def loading_best_params(target, model_name, file_version):
-    path = f"./output/{target}/{model_name}/Metric_Parameters/"
-    # Parameter
-    df_best_params = pd.read_excel(path + "Parameters_" + file_version + ".xlsx")
-    df_best_params = df_best_params.drop(["Unnamed: 0"], axis=1)
-    # Metric - Valid
-    metric_valid_set = pd.read_excel(path + "Metric_ValidSet_" + file_version + ".xlsx")
-    metric_valid_set = metric_valid_set.drop(["Unnamed: 0"], axis=1)
-    # Metric - Test
-    metric_test_set = pd.read_excel(path + "Metric_TestSet_" + file_version + ".xlsx")
-    metric_test_set = metric_test_set.drop(["Unnamed: 0"], axis=1)
-
-    result_packing = metric_valid_set, metric_test_set, df_best_params
-    return result_packing
-
-
-def converting_params(model_name, df_input, best_index):
+def converting_params(model_name, df_input):
     # Recall
-    recall_best_params = df_input.loc[best_index].to_dict()
+    recall_best_params = df_input.loc[0].to_dict()
+
     # Type Conversion
     if model_name == "LGBM":
         recall_best_params["n_estimators"] = int(recall_best_params["n_estimators"])
@@ -52,6 +38,7 @@ def converting_params(model_name, df_input, best_index):
         )
         recall_best_params["random_state"] = int(recall_best_params["random_state"])
     recall_best_params.pop("index", None)
+
     return recall_best_params
 
 
@@ -61,11 +48,9 @@ def recalling_best(
     target,
     target_list,
     df_best_params,
-    best_index,
     valid_set_length,
     test_set_length,
 ):
-
     # Pre-processing
     df_input["dt"] = pd.to_datetime(df_input["dt"])
     df_processed, df_lag_result = pre_processing(df_input, target, target_list)
@@ -85,7 +70,7 @@ def recalling_best(
     x_test.update(df_tmp)  # Lag Update
 
     # Recall Best Parameter
-    recall_best_params = converting_params(model_name, df_best_params, best_index)
+    recall_best_params = converting_params(model_name, df_best_params)
 
     # Model w/ Best Parameter
     if model_name == "LGBM":
@@ -118,6 +103,7 @@ def recalling_best(
 
     df_pred_test = pd.DataFrame(y_test_updated)
     df_pred_test = df_pred_test.rename(columns={target: "Prediction"})
+
     return df_pred_test, y_test
 
 
@@ -127,7 +113,6 @@ def forecasting_future(
     target,
     target_list,
     df_best_params,
-    best_index,
     valid_set_length,
     test_set_length,
 ):
@@ -146,7 +131,7 @@ def forecasting_future(
     df_future_y = df_for_future[target].to_frame()
 
     # Recall Best Parameter
-    recall_best_params = converting_params(model_name, df_best_params, best_index)
+    recall_best_params = converting_params(model_name, df_best_params)
 
     # Model w/ Best Parameter
     if model_name == "LGBM":
@@ -159,9 +144,14 @@ def forecasting_future(
         model = GradientBoostingRegressor(**recall_best_params)
         model.fit(x_train, y_train)
 
+    # Bootstraps
+    df_ci_result = pd.DataFrame()
+    n_bootstraps = 100  # 100
+
     # Prediction(Recursive)
     for iter_idx_pred in range(0, test_set_length):
         what_to_predict = pd.DataFrame(df_future_x.iloc[iter_idx_pred,]).T
+        bootstrap_preds = []
 
         # Prediction - future
         df_pred_future = predicting(model, what_to_predict)
@@ -175,7 +165,30 @@ def forecasting_future(
         # Lag Update
         df_future_x.update(df_tmp)
 
+        # Confidence Interval
+        for _ in range(n_bootstraps):
+            # Bootstrap
+            x_resampled, y_resampled = resample(x_train, y_train)
+            model.fit(x_resampled, y_resampled)
+            bootstrap_preds.append(model.predict(what_to_predict)[0])
+
+        bootstrap_preds = np.array(bootstrap_preds)
+        lower_bound = np.percentile(bootstrap_preds, 2.5, axis=0)
+        upper_bound = np.percentile(bootstrap_preds, 97.5, axis=0)
+        df_confidence_interval = pd.DataFrame(
+            {
+                "Lower_CI": [lower_bound],
+                "Upper_CI": [upper_bound],
+            }
+        )
+        df_ci_result = pd.concat([df_ci_result, df_confidence_interval])
+        df_ci_result["Lower_CI"] = round(df_ci_result["Lower_CI"], 3)
+        df_ci_result["Upper_CI"] = round(df_ci_result["Upper_CI"], 3)
+        df_ci_result = df_ci_result.reset_index(drop=True)
+
     df_future_y = pd.DataFrame(df_future_y)
     df_future_y = df_future_y.rename(columns={target: "Prediction"})
+
     print("Future Forecasting - End")
-    return df_future_y
+
+    return df_future_y, df_ci_result

@@ -14,7 +14,6 @@ import os
 import logging
 import warnings
 
-
 from result import calculating_metric
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -22,13 +21,6 @@ logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
 logging.getLogger("prophet").setLevel(logging.WARNING)
 logging.getLogger("prophet").propagate = False
 warnings.filterwarnings("ignore")
-
-"""
-# Data Settig
-valid_length = 3  # fix this
-test_length = 3  # fix this
-future_length = 7  # fix this
-"""
 
 
 def _expand_ts(df_input, future_length):
@@ -41,12 +33,14 @@ def _expand_ts(df_input, future_length):
     )
     additional_df = pd.DataFrame({"dt": future_dates})
     df_future = pd.concat([df_future, additional_df], ignore_index=True)
+
     return df_future
 
 
 def _merging_pred_actual(df_actual, df_pred):
     df_actual = df_actual.rename(columns={"y": "Actual"})
     df_output = pd.concat([df_actual, df_pred], axis=1)
+
     return df_output
 
 
@@ -62,6 +56,7 @@ def _preprocessing_arima(df_input, target, test_length, future_length):
 
     # Future Set
     df_future = df_input.iloc[-future_length:]
+
     return df_train, df_test, df_future
 
 
@@ -143,6 +138,7 @@ def _predicting_arima(df_expanded, df_x, test_set_length, future_length):
     df_best_params_result.to_csv(save_path + f"{model_name}_Parameters.csv", index=True)
     df_metric_test_result.to_csv(save_path + f"{model_name}_Metric.csv", index=True)
     df_pred_values_result.to_csv(save_path + f"{model_name}_Prediction.csv", index=True)
+
     print("ARIMA - Done")
 
     return df_metric_test_result, df_pred_values_result
@@ -169,6 +165,7 @@ def _preprocessing_prophet(df_input, target, valid_length, test_length, future_l
     # Future Set
     df_future = df_input.iloc[-future_length:]
     df_future = df_future.reset_index(drop=True)
+
     return df_train, df_valid, df_test, df_future
 
 
@@ -268,6 +265,7 @@ def _predicting_prophet(
     df_best_params_result.to_csv(save_path + f"{model_name}_Parameters.csv", index=True)
     df_metric_test_result.to_csv(save_path + f"{model_name}_Metric.csv", index=True)
     df_pred_values_result.to_csv(save_path + f"{model_name}_Prediction.csv", index=True)
+
     print("Prophet Done")
 
     return df_metric_test_result, df_pred_values_result
@@ -295,6 +293,7 @@ def _preprocessing(df_input, target, test_length, future_length):
     # Future Set
     df_future = df_input.iloc[-future_length:]
     df_future = df_future.reset_index()
+
     return df_train, df_test, df_future
 
 
@@ -310,6 +309,7 @@ def _predicting_sliding_window(model, scaler, x_set, forecasting_length, window_
         current_input = np.append(current_input[1:], current_prediction, axis=0)
 
     pred = scaler.inverse_transform(predictions)  # descaling
+
     return pred
 
 
@@ -325,6 +325,7 @@ def _preprocessing_lstm(x, y, test_length, future_length):
     # Future Set
     x_future = x[-future_length:]
     y_future = y[-future_length:]
+
     return x_train, y_train, x_test, y_test, x_future, y_future
 
 
@@ -436,6 +437,7 @@ def _predicting_lstm(df_expanded, df_x, test_length, future_length):
     df_best_params_result.to_csv(save_path + f"{model_name}_Parameters.csv", index=True)
     df_metric_test_result.to_csv(save_path + f"{model_name}_Metric.csv", index=True)
     df_pred_values_result.to_csv(save_path + f"{model_name}_Prediction.csv", index=True)
+
     print("LSTM Done")
 
     return df_metric_test_result, df_pred_values_result
@@ -551,6 +553,7 @@ def _predicting_bi_lstm(df_expanded, df_x, test_length, future_length):
     df_best_params_result.to_csv(save_path + f"{model_name}_Parameters.csv", index=True)
     df_metric_test_result.to_csv(save_path + f"{model_name}_Metric.csv", index=True)
     df_pred_values_result.to_csv(save_path + f"{model_name}_Prediction.csv", index=True)
+
     print("BI-LSTM Done")
 
     return df_metric_test_result, df_pred_values_result
@@ -664,6 +667,7 @@ def _predicting_gru(df_expanded, df_x, test_length, future_length):
     df_best_params_result.to_csv(save_path + f"{model_name}_Parameters.csv", index=True)
     df_metric_test_result.to_csv(save_path + f"{model_name}_Metric.csv", index=True)
     df_pred_values_result.to_csv(save_path + f"{model_name}_Prediction.csv", index=True)
+
     print("GRU Done")
 
     return df_metric_test_result, df_pred_values_result
@@ -753,41 +757,41 @@ def forecasting_features(
     save_path = f"./output/FeaturesForecasting/"
 
     # ARIMA
-    if not os.path.exists(save_path + "ARIMA_Prediction.csv"):  # 추후 삭제
+    if not os.path.exists(save_path + "ARIMA_Prediction.csv"):
         _predicting_arima(df_expanded, df_x, test_set_length, future_length)
-    else:  # 추후 삭제
+    else:
         print("'ARIMA' Result already exists. Skipping Forecasting.")
 
     # Prophet
-    if not os.path.exists(save_path + "Prophet_Prediction.csv"):  # 추후 삭제
+    if not os.path.exists(save_path + "Prophet_Prediction.csv"):
         _predicting_prophet(
             df_expanded, df_x, valid_set_length, test_set_length, future_length
         )
-    else:  # 추후 삭제
+    else:
         print("'Prophet' Result already exists. Skipping Forecasting.")
 
     # LSTM
-    if not os.path.exists(save_path + "LSTM_Prediction.csv"):  # 추후 삭제
+    if not os.path.exists(save_path + "LSTM_Prediction.csv"):
         _predicting_lstm(df_expanded, df_x, test_set_length, future_length)
-    else:  # 추후 삭제
+    else:
         print("'LSTM' Result already exists. Skipping Forecasting.")
 
     # BI-LSTM
-    if not os.path.exists(save_path + "BI-LSTM_Prediction.csv"):  # 추후 삭제
+    if not os.path.exists(save_path + "BI-LSTM_Prediction.csv"):
         _predicting_bi_lstm(df_expanded, df_x, test_set_length, future_length)
-    else:  # 추후 삭제
+    else:
         print("'BI-LSTM' Result already exists. Skipping Forecasting.")
 
     # GRU
-    if not os.path.exists(save_path + "GRU_Prediction.csv"):  # 추후 삭제
+    if not os.path.exists(save_path + "GRU_Prediction.csv"):
         _predicting_gru(df_expanded, df_x, test_set_length, future_length)
-    else:  # 추후 삭제
+    else:
         print("'GRU' Result already exists. Skipping Forecasting.")
 
     # Find Best Model & Prediction Value
-    if not os.path.exists(save_path + "_Result_FeatureForecasting.csv"):  # 추후 삭제
+    if not os.path.exists(save_path + "_Result_FeatureForecasting.csv"):
         df_expanded = _finding_best(df_expanded, df_x)
-    else:  # 추후 삭제
+    else:
         df_expanded = pd.read_csv(save_path + "_Result_FeatureForecasting.csv")
         print("'Feature Forecasting' Result already exists. Skipping Forecasting.")
 

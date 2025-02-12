@@ -5,19 +5,34 @@ import warnings
 from run_cli import PredictionParameter
 from preprocessing import pre_processing, data_split, making_lag_features
 from features_forecasting import forecasting_features
-from optimization import optimizing_parameters
-from result import saving_essential, saving_result, saving_plot_n_result
+from optimization import optimizing_parameters, choosing_best_model
 from future_forecasting import recalling_best, forecasting_future
+from result import (
+    saving_essential,
+    saving_result,
+    saving_plot_n_result,
+    merging_results,
+    clearing_all_files,
+)
 
 warnings.filterwarnings("ignore")
 
+# ----------------- Model Parameters -----------------
 forecasting_units = "Monthly"  # ("Monthly", "Weekly")
 data_setting = "Fixed"  # ("Fixed", "Manually")
-result_saving_for_tracking = "False"
+result_saving_for_tracking = "False"  # Default: "False"
+# ----------------------------------------------------
 
-model_name = "LGBM"  # ("LGBM", "XGB", "Qboost")
-target_list = ["IronOre", "Nickel", "Coal", "CokingCoal", "Steel", "Copper", "Aluminum"]
-target = target_list[0]
+model_list = ["LGBM", "XGB", "Qboost"]
+target_dict = {
+    "IronOre": "SCO:COM",
+    "Nickel": "LN1:COM",
+    "Coal": "XAL1:COM",
+    "CokingCoal": "_DJMc1:COM",
+    "Steel": "JBP:COM",
+    "Copper": "HG1:COM",
+    "Aluminum": "LMAHDS03:COM",
+}
 
 if data_setting == "Fixed":
     if forecasting_units == "Monthly":
@@ -54,9 +69,9 @@ def loading_data(param: PredictionParameter):
     return df
 
 
-def train_and_predict(df, target_name):
+def train_and_predict(df, target_name, model_name):
     # Pre-processing
-    df_processed, df_lag_result = pre_processing(df, target_name, target_list)
+    df_processed, df_lag_result = pre_processing(df, target_name, target_dict)
     x_train, y_train, x_valid, y_valid, x_test, y_test = data_split(
         df_processed, target_name, valid_set_length, test_set_length
     )
@@ -74,7 +89,7 @@ def train_and_predict(df, target_name):
     x_test.update(df_tmp)  # Lag Update
 
     # HyperParameters Optimization
-    print("Hyperparameter Optimization - Start")
+    print(f"Hyperparameter Optimization - Start ({model_name})")
     data_packing = x_train, y_train, x_valid, y_valid, x_test, y_test
     metric_valid_set, metric_test_set, df_best_params = optimizing_parameters(
         model_name,
@@ -86,7 +101,6 @@ def train_and_predict(df, target_name):
         300,  # 300
         50,  # 50
     )
-    print("Hyperparameter Optimization - End")
     return metric_valid_set, metric_test_set, df_best_params
 
 
@@ -99,57 +113,80 @@ def main():
 
     # Feature Forecasting
     df_expanded = forecasting_features(
-        df, target_list, valid_set_length, test_set_length, future_length
+        df, target_dict, valid_set_length, test_set_length, future_length
     )
 
-    # Optimization
-    metric_valid_set, metric_test_set, df_best_params = train_and_predict(df, target)
-    if result_saving_for_tracking == "False":
-        saving_essential(
-            target, model_name, metric_valid_set, metric_test_set, df_best_params
+    # Forecasting
+    for target in target_dict:
+        print(f"-----------------{target}-----------------")
+
+        for model_name in model_list:
+            # Optimization
+            metric_valid_set, metric_test_set, df_best_params = train_and_predict(
+                df, target, model_name
+            )
+            # Result
+            if result_saving_for_tracking == "False":
+                saving_essential(
+                    target,
+                    model_name,
+                    metric_test_set,
+                    df_best_params,
+                )
+            else:
+                saving_result(
+                    target,
+                    model_name,
+                    metric_valid_set,
+                    metric_test_set,
+                    df_best_params,
+                    "",
+                )
+
+        # Best Model & Params
+        best_model, best_index, df_best_params = choosing_best_model(target, model_list)
+
+        # Recall Best Model
+        df_pred_test, df_actual_test = recalling_best(
+            df_expanded,
+            best_model,
+            target,
+            target_dict,
+            df_best_params,
+            valid_set_length,
+            test_set_length,
         )
-    else:
-        saving_result(
-            target, model_name, metric_valid_set, metric_test_set, df_best_params, ""
+
+        # Future Forecasting
+        df_pred_future, df_ci_result = forecasting_future(
+            df_expanded,
+            best_model,
+            target,
+            target_dict,
+            df_best_params,
+            valid_set_length,
+            test_set_length,
         )
 
-    # Best Index
-    best_index = metric_test_set["nRMSE(Max-Min)"].idxmin()
+        # Result Saving
+        saving_plot_n_result(
+            df,
+            target,
+            best_model,
+            df_pred_test,
+            df_pred_future,
+            df_ci_result,
+            df_expanded,
+            result_saving_for_tracking,
+        )
 
-    # Recall Best Model
-    df_pred_test, df_actual_test = recalling_best(
-        df_expanded,
-        model_name,
-        target,
-        target_list,
-        df_best_params,
-        best_index,
-        valid_set_length,
-        test_set_length,
-    )
+    # Result Merge
+    merging_results(target_dict)
+    clearing_all_files(result_saving_for_tracking)
 
-    # Future Forecasting
-    df_pred_future = forecasting_future(
-        df_expanded,
-        model_name,
-        target,
-        target_list,
-        df_best_params,
-        best_index,
-        valid_set_length,
-        test_set_length,
-    )
-
-    # Result Saving
-    saving_plot_n_result(
-        target,
-        model_name,
-        df_pred_test,
-        df_pred_future,
-        df_expanded,
-        result_saving_for_tracking,
-    )
     print("All Process - Done")
+
+    return
 
 
 if __name__ == "__main__":
