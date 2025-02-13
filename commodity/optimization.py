@@ -109,7 +109,7 @@ def optimizing_parameters(
         def objective(trial):
             params = {
                 "n_estimators": trial.suggest_int("n_estimators", 1, 200, step=10),
-                "learning_rate": trial.suggest_float("learning_rate", 0, 1),
+                "learning_rate": trial.suggest_float("learning_rate", 0.01, 1),
                 "max_depth": trial.suggest_int("max_depth", 3, 15),
                 "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
                 "max_features": trial.suggest_float("max_features", 0.1, 1.0),
