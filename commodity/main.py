@@ -32,6 +32,8 @@ target_dict = {
     "Steel": "JBP:COM",
     "Copper": "HG1:COM",
     "Aluminum": "LMAHDS03:COM",
+    # "Gold": "XAUUSD:CUR",
+    # "Soybeans": "S_1:COM",
 }
 
 if data_setting == "Fixed":
@@ -41,7 +43,7 @@ if data_setting == "Fixed":
         future_length = 7
     else:
         valid_set_length = 4
-        test_set_length = 4
+        test_set_length = 8
         future_length = 8
 else:
     valid_set_length = 3  # fill this as you want
@@ -49,7 +51,7 @@ else:
     future_length = 7  # fill this as you want
 
 
-def loading_data(param: PredictionParameter):
+def loading_data(param: PredictionParameter, forecasting_units):
     ref_date = param.ref_date
     input_path = param.input_path
     ext_path_list = param.ext_path_list
@@ -58,13 +60,16 @@ def loading_data(param: PredictionParameter):
 
     # Load Data
     df = pd.read_parquet(input_path)
+    if forecasting_units == "Monthly":
+        # 추후 삭제 - from here
+        df["Date"] = (
+            pd.to_datetime(df["Date"])
+            - pd.offsets.MonthEnd()
+            + pd.offsets.MonthBegin(1)
+        )
+        # 추후 삭제 - to here
 
-    # 추후 삭제 - from here
-    df["Date"] = (
-        pd.to_datetime(df["Date"]) - pd.offsets.MonthEnd() + pd.offsets.MonthBegin(1)
-    )
     df = df.rename(columns={"Date": "dt"})
-    # 추후 삭제 - to here
 
     return df
 
@@ -98,7 +103,7 @@ def train_and_predict(df, target_name, model_name):
         df_processed,
         y_test_updated,
         test_set_length,
-        300,  # 300
+        200,  # 200
         50,  # 50
     )
     return metric_valid_set, metric_test_set, df_best_params
@@ -109,11 +114,16 @@ def main():
 
     # Data Load
     param = run_cli()
-    df = loading_data(param)
+    df = loading_data(param, forecasting_units)
 
     # Feature Forecasting
     df_expanded = forecasting_features(
-        df, target_dict, valid_set_length, test_set_length, future_length
+        df,
+        target_dict,
+        valid_set_length,
+        test_set_length,
+        future_length,
+        forecasting_units,
     )
 
     # Forecasting

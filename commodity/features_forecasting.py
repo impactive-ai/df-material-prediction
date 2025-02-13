@@ -23,16 +23,24 @@ logging.getLogger("prophet").propagate = False
 warnings.filterwarnings("ignore")
 
 
-def _expand_ts(df_input, future_length):
+def _expand_ts(df_input, future_length, forecasting_units):
     df_future = df_input.copy()
     last_date = df_future["dt"].iloc[-1]
 
     # 향후 날짜 생성
-    future_dates = pd.date_range(
-        start=last_date + pd.Timedelta(days=1), periods=future_length, freq="MS"
-    )
-    additional_df = pd.DataFrame({"dt": future_dates})
-    df_future = pd.concat([df_future, additional_df], ignore_index=True)
+    if forecasting_units == "Monthly":
+        future_dates = pd.date_range(
+            start=last_date + pd.Timedelta(days=1), periods=future_length, freq="MS"
+        )
+        additional_df = pd.DataFrame({"dt": future_dates})
+        df_future = pd.concat([df_future, additional_df], ignore_index=True)
+    elif forecasting_units == "Weekly":
+        future_dates = pd.date_range(
+            start=last_date + pd.Timedelta(weeks=1), periods=future_length, freq="W"
+        )
+        future_dates = future_dates - pd.Timedelta(days=2)
+        additional_df = pd.DataFrame({"dt": future_dates})
+        df_future = pd.concat([df_future, additional_df], ignore_index=True)
 
     return df_future
 
@@ -749,10 +757,10 @@ def _finding_best(df_expanded, df_x):
 
 
 def forecasting_features(
-    df, target_list, valid_set_length, test_set_length, future_length
+    df, target_list, valid_set_length, test_set_length, future_length, forecasting_units
 ):
     print("Feature Forecasting - Start")
-    df_expanded = _expand_ts(df, future_length)
+    df_expanded = _expand_ts(df, future_length, forecasting_units)
     df_x = df_expanded.drop(target_list, axis=1).drop("dt", axis=1)
     save_path = f"./output/FeaturesForecasting/"
 
