@@ -53,7 +53,7 @@ def run_pipeline(
     y_hat = best_model.predict(X_test_scaled)
     mape = mean_absolute_percentage_error(y_test, y_hat)
 
-    # plot_metrics(y_test, y_hat)
+    #calc_metrics(y_test, y_hat)
 
     if show_shap:
         from extra import interpret_shap

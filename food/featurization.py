@@ -262,13 +262,12 @@ def preprocess_data(
 
     if product == "SMP":
         raw_df.loc[raw_df["v_count"] == 1, "v_std"] = 0
-    raw_df.drop(
-        columns=["grain_id", "source_freq", "v_open", "v_close", "v_count"],
-        inplace=True,
-    )
-
+        
+    raw_df = raw_df[['dt', 'v_low', 'v_high', 'v_mean', 'v_std']]
+    
+    raw_df["dt"] = pd.to_datetime(raw_df["dt"])
     df = raw_df[raw_df["dt"].dt.date < ref_month].copy()
-
+    
     if is_test:
         df = _add_predict_row(df, lag)
 
@@ -292,9 +291,6 @@ def preprocess_data(
 
     df = _add_features(df, n_list[0], n_list, window)
     df = _add_external_data(df, ext_list, ref_month, lag=n_list[0])
-
-    # 불용 컬럼 제거
-    df = df.drop(columns=["dt_min", "dt_max"])
 
     return df
 
