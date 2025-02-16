@@ -308,6 +308,7 @@ def saving_plot_n_result(
 def merging_results(target_dict):
     df_prediction_result = pd.DataFrame()
     df_price_history_result = pd.DataFrame()
+    df_shap_result = pd.DataFrame()
 
     save_path = "./final_output/"
     if not os.path.exists(save_path):
@@ -334,11 +335,17 @@ def merging_results(target_dict):
             save_path + f"price_history_{current_date}.csv", index=False
         )
 
+        # shap.csv
+        df_shap = pd.read_csv(path + "shap_result.csv")
+        df_shap_result = pd.concat([df_shap_result, df_shap], axis=0)
+        df_shap_result.to_csv(save_path + f"shap_{current_date}.csv", index=False)
+
     # Type Conversion
     df_prediction_result["snapshot_dt"] = pd.to_datetime(
         df_prediction_result["snapshot_dt"]
     )
     df_price_history_result["dt"] = pd.to_datetime(df_price_history_result["dt"])
+    df_shap_result["snapshot_dt"] = pd.to_datetime(df_shap_result["snapshot_dt"])
 
     return
 

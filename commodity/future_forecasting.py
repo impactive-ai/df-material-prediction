@@ -4,6 +4,8 @@ from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.utils import resample
+import shap
+import os
 
 from preprocessing import pre_processing, data_split, making_lag_features
 from optimization import predicting
@@ -107,6 +109,86 @@ def recalling_best(
     return df_pred_test, y_test
 
 
+def _making_shap_values(df_shap_result, df_input, test_set_length, target, target_list):
+    df_shap_result.reset_index(drop=True, inplace=True)
+    df_shap_result.rename(
+        columns={
+            "Year": "dt_year",
+            "Month": "dt_month",
+            "WeekByYear": "dt_week_num",
+            "WeekByMonth": "dt_week_month",
+            # Lag
+            "lag_1": "v_lag_1",
+            "lag_2": "v_lag_2",
+            "lag_3": "v_lag_3",
+            "lag_4": "v_lag_4",
+            "lag_5": "v_lag_5",
+            "lag_6": "v_lag_6",
+            "diff_lag1_lag2": "v_chgrate_1_2",
+            "diff_lag2_lag3": "v_chgrate_2_3",
+            "diff_lag3_lag4": "v_chgrate_3_4",
+            "diff_lag4_lag5": "v_chgrate_4_5",
+            "diff_lag5_lag6": "v_chgrate_5_6",
+            "mean_window_3": "v_wndavg_3",
+            "mean_window_6": "v_wndavg_6",
+            "std_window_3": "v_wndstd_3",
+            "std_window_6": "v_wndstd_6",
+            # EX
+            "USD_CNY": "EX_USD_CNY",
+            "USD_KRW": "EX_USD_KRW",
+            "USD_JPY": "EX_USD_JPY",
+            "USD_AUD": "EX_AUD_USD",
+            "USD_BRL": "EX_USD_BRL",
+            "USD_DXY": "Idx_DxyUSD",
+            "Stocks_US500": "Idx_SnP500",
+            "Stocks_USVIX": "Idx_SnPVIX",
+            "Stocks_CH50": "Idx_CH50",
+            "Stocks_CSI300": "Idx_CSI300",
+            "Stocks_SHANGHAI50": "Idx_Shanghai50",
+            "Stocks_SHANGHAI": "Idx_Shanghai",
+            "Stocks_HK50": "Idx_HangSeng",
+            "Stocks_GEI": "Idx_SnPGlobal1200",
+        },
+        inplace=True,
+    )
+
+    df_shap_result_col_name = df_shap_result.columns
+    df_shap_result.reset_index(inplace=True)
+    df_shap_result.rename(columns={"index": "h"}, inplace=True)
+    snapshot_dt = df_input[["dt"]].iloc[-test_set_length]
+    snapshot_dt = pd.to_datetime(snapshot_dt[0])
+
+    df_shap_result_deepflow = pd.DataFrame()
+
+    for col_idx in range(len(df_shap_result_col_name)):
+        df_shap_result_tmp = df_shap_result[["h", df_shap_result_col_name[col_idx]]]
+        df_shap_result_tmp.rename(
+            columns={df_shap_result_col_name[col_idx]: "shap_value"}, inplace=True
+        )
+        df_shap_result_tmp["col_name"] = df_shap_result_col_name[col_idx]
+        df_shap_result_tmp["snapshot_dt"] = snapshot_dt
+        df_shap_result_tmp["grain_id"] = target_list[target]
+        df_shap_result_tmp = df_shap_result_tmp[
+            ["snapshot_dt", "grain_id", "h", "col_name", "shap_value"]
+        ]
+        df_shap_result_deepflow = pd.concat(
+            [df_shap_result_deepflow, df_shap_result_tmp]
+        )
+
+    # Saving Path
+    save_path = f"./output/{target}/_Result/"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    # SHAP Saving
+    df_shap_result_deepflow.to_csv(
+        save_path + "shap_result.csv",
+        index=False,
+    )
+
+    return df_shap_result_deepflow
+
+
 def forecasting_future(
     df_input,
     model_name,
@@ -144,6 +226,11 @@ def forecasting_future(
         model = GradientBoostingRegressor(**recall_best_params)
         model.fit(x_train, y_train)
 
+    # SHAP
+    explainer = shap.TreeExplainer(model)
+    x_col_name = df_future_x.columns
+    df_shap_result = pd.DataFrame(columns=x_col_name)
+
     # Bootstraps
     df_ci_result = pd.DataFrame()
     n_bootstraps = 100  # 100
@@ -152,6 +239,11 @@ def forecasting_future(
     for iter_idx_pred in range(0, test_set_length):
         what_to_predict = pd.DataFrame(df_future_x.iloc[iter_idx_pred,]).T
         bootstrap_preds = []
+
+        # SHAP
+        shap_values = explainer.shap_values(what_to_predict)
+        shap_values_update = pd.DataFrame(shap_values, columns=x_col_name)
+        df_shap_result = pd.concat([df_shap_result, shap_values_update])
 
         # Prediction - future
         df_pred_future = predicting(model, what_to_predict)
@@ -188,6 +280,10 @@ def forecasting_future(
 
     df_future_y = pd.DataFrame(df_future_y)
     df_future_y = df_future_y.rename(columns={target: "Prediction"})
+
+    # SHAP
+    _making_shap_values(df_shap_result, df_input, test_set_length, target, target_list)
+    print("SHAP Result Saved")
 
     print("Future Forecasting - End")
 
