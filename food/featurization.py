@@ -102,9 +102,11 @@ def _add_predict_row(df, lag):
     return df
 
 
-def _add_month_onehot(df):
+def _add_month_onehot(df, valid_months=[1,2,3,4,5,11,12], prefix="month"):
     month = df["dt"].apply(lambda x: x.month)
-    one_hot = pd.get_dummies(month, prefix="month")
+    one_hot = pd.get_dummies(month, prefix=prefix)
+    valid_months = [f"{prefix}_{x}" for x in valid_months]
+    one_hot = one_hot[[col for col in one_hot.columns if col in valid_months]]
     df = pd.concat([df, one_hot], axis=1)
     return df
 
