@@ -43,13 +43,13 @@ products_mapping = {
 params_mapping = {
     "cabbage": {
         1: {
-            "n_list": [1, 2, 3, 6, 7],
-            "window": 12,
+            "n_list": [1, 3, 8, 9],
+            "window": 11,
             "best_params": {
                 "learning_rate": 0.2,
                 "max_depth": 3,
-                "n_estimators": 300,
-                "subsample": 1,
+                "n_estimators": 100,
+                "subsample": 0.9,
             },
         },
         2: {
@@ -63,23 +63,23 @@ params_mapping = {
             },
         },
         3: {
-            "n_list": [3, 6, 7, 9, 10],
+            "n_list": [3, 4, 9, 11], 
             "window": 11,
             "best_params": {
-                "learning_rate": 0.3,
+                "learning_rate": 0.2,
                 "max_depth": 3,
-                "n_estimators": 300,
+                "n_estimators": 100, 
                 "subsample": 0.8,
             },
         },
         4: {
-            "n_list": [4, 6, 8, 9, 11],
-            "window": 10,
+            "n_list": [4, 5, 6, 9, 11, 12],
+            "window": 14, 
             "best_params": {
                 "learning_rate": 0.2,
                 "max_depth": 3,
-                "n_estimators": 300,
-                "subsample": 1,
+                "n_estimators": 200, 
+                "subsample": 0.9, 
             },
         },
         5: {
@@ -93,13 +93,13 @@ params_mapping = {
             },
         },
         6: {
-            "n_list": [6, 7, 8, 9, 11, 12, 13],
-            "window": 17,
+            "n_list": [6, 11, 12, 13],
+            "window": 13, 
             "best_params": {
-                "learning_rate": 0.2,
+                "learning_rate": 0.3, 
                 "max_depth": 3,
-                "n_estimators": 200,
-                "subsample": 0.9,
+                "n_estimators": 100, 
+                "subsample": 0.8, 
             },
         },
         7: {
