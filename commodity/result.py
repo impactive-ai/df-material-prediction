@@ -145,48 +145,7 @@ def saving_result(
     return
 
 
-def saving_plot_n_result(
-    df,
-    target,
-    model_name,
-    df_pred_test,
-    df_pred_future,
-    df_ci_result,
-    df_expanded,
-    result_saving_for_tracking,
-):
-    plot_num = (len(df_pred_future) * 2) + 4
-    df_plot = df_expanded[["dt", target]].iloc[-plot_num:]
-    df_plot = df_plot.rename(columns={target: "Actual"})
-    df_plot = df_plot.reset_index(drop=True)
-
-    # df_pred_test
-    df_tmp = df_plot.iloc[-(len(df_pred_future) * 2) : -len(df_pred_future)]
-    df_tmp = df_tmp.reset_index(drop=True)
-    df_pred_test = df_pred_test.reset_index(drop=True)
-    df_pred_test = pd.concat([df_tmp, df_pred_test], axis=1)
-    df_pred_test["Target"] = target
-    df_pred_test["Tag"] = "TestSet"
-
-    # df_pred_future
-    df_tmp = df_plot.iloc[-len(df_pred_future) :]
-    df_tmp = df_tmp.reset_index(drop=True)
-    df_pred_future = df_pred_future.reset_index(drop=True)
-    df_pred_future = pd.concat([df_tmp, df_pred_future], axis=1)
-    df_pred_future["Target"] = target
-    df_pred_future["Tag"] = "FutureForecasting"
-
-    # df_plot
-    df_plot = df_plot.set_index("dt")
-    df_plot["Prediction"] = np.nan
-    df_plot["Target"] = target
-    df_plot["Tag"] = ""
-    df_pred_test = df_pred_test.set_index("dt")
-    df_pred_future = df_pred_future.set_index("dt")
-    df_plot.update(df_pred_test[["Prediction", "Target", "Tag"]])
-    df_plot.update(df_pred_future[["Prediction", "Target", "Tag"]])
-    df_plot = df_plot.reset_index()
-
+def _making_plot(target, df_plot, df_pred_future):
     # Plot
     plt.figure(figsize=(16, 7))
     plt.plot(df_plot["dt"], df_plot["Actual"], label="Actual", marker="o")
@@ -233,16 +192,97 @@ def saving_plot_n_result(
     plt.legend()
     plt.grid(True)
 
+    return plt
+
+
+def _making_plot_testset(target, df_plot, df_pred_future):
+    # Plot
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_plot['dt'], df_plot['Actual'], label='Actual', marker="o")
+    plt.plot(df_plot['dt'], df_plot['Prediction'], label='Prediction', marker="o")
+
+    # vertical line - Test
+    testset_starting_date = pd.to_datetime(df_plot.iloc[-((len(df_pred_future)))]["dt"])
+    vertical_line_test = testset_starting_date.strftime('%Y-%m-%d')
+    vertical_line_test_dt = datetime.strptime(vertical_line_test, '%Y-%m-%d')
+    plt.axvline(x=date2num(vertical_line_test_dt), color='black', linestyle='--', alpha=0.5)
+    plt.text(date2num(vertical_line_test_dt), df_plot['Actual'].min(), ' TestSet', color='black', va='top', ha='left')
+
+    plt.xlabel('ts')
+    plt.ylabel('Price')
+    plt.title(target)
+    plt.legend()
+    plt.grid(True)
+
+    return plt
+
+
+def saving_plot_n_result(
+    df,
+    target,
+    model_name,
+    df_pred_test,
+    df_pred_future,
+    df_ci_result,
+    df_expanded,
+    result_saving_for_tracking,
+):
+    plot_num = (len(df_pred_future) * 2) + 8
+    df_plot = df_expanded[["dt", target]].iloc[-plot_num:]
+    df_plot = df_plot.rename(columns={target: "Actual"})
+    df_plot = df_plot.reset_index(drop=True)
+
+    # df_pred_test
+    df_tmp = df_plot.iloc[-(len(df_pred_future) * 2) : -len(df_pred_future)]
+    df_tmp = df_tmp.reset_index(drop=True)
+    df_pred_test = df_pred_test.reset_index(drop=True)
+    df_pred_test = pd.concat([df_tmp, df_pred_test], axis=1)
+    df_pred_test["Target"] = target
+    df_pred_test["Tag"] = "TestSet"
+
+    # df_pred_future
+    df_tmp = df_plot.iloc[-len(df_pred_future) :]
+    df_tmp = df_tmp.reset_index(drop=True)
+    df_pred_future = df_pred_future.reset_index(drop=True)
+    df_pred_future = pd.concat([df_tmp, df_pred_future], axis=1)
+    df_pred_future["Target"] = target
+    df_pred_future["Tag"] = "FutureForecasting"
+
+    # df_plot
+    df_plot = df_plot.set_index("dt")
+    df_plot["Prediction"] = np.nan
+    df_plot["Target"] = target
+    df_plot["Tag"] = ""
+    df_pred_test = df_pred_test.set_index("dt")
+    df_pred_future = df_pred_future.set_index("dt")
+    df_plot.update(df_pred_test[["Prediction", "Target", "Tag"]])
+    df_plot.update(df_pred_future[["Prediction", "Target", "Tag"]])
+    df_plot = df_plot.reset_index()
+
+    # df_plot_testset
+    df_plot_testset = df_plot.copy()
+    df_plot_testset = df_plot_testset.iloc[:-len(df_pred_future)]
+    df_plot = df_plot.iloc[4:]
+
     # Saving Path
     save_path = f"./output/{target}/_Result/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    # Plot Saving
+    # Plot Saving - future
+    plt_future = _making_plot(target, df_plot, df_pred_future)
     if not result_saving_for_tracking == "False":
         plot_file_name = "Plot_PredActual.png"
         saving_dir = save_path + plot_file_name
-        plt.savefig(saving_dir)
+        plt_future.savefig(saving_dir)
+
+    # Plot Saving - testset
+    plt_testset = _making_plot_testset(target, df_plot_testset, df_pred_future)
+    if not result_saving_for_tracking == "False":
+        plot_file_name = "Plot_testset_PredActual.png"
+        saving_dir = save_path + plot_file_name
+        plt_testset.savefig(saving_dir)
+
 
     # DF Saving
     df_export = df_plot.iloc[-(len(df_pred_future) * 2) :]
