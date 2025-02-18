@@ -64,6 +64,7 @@ def optimizing_parameters(
                 "subsample_freq": trial.suggest_int("subsample_freq", 1, 10),
                 "random_state": trial.suggest_int("random_state", 42, 42),
                 "verbose": -1,
+                # "objective": "quantile",  # (Default: "mse" / Optional: "mae", "quantile")
             }
             # Model
             model_optuna = LGBMRegressor(**params)
@@ -90,6 +91,8 @@ def optimizing_parameters(
                 "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1),
                 "gamma": trial.suggest_float("gamma", 0, 1),
                 "random_state": trial.suggest_int("random_state", 42, 42),
+                # "objective": "reg:quantileerror",  # (Default: "reg:squarederror" / Optional: "reg:absoluteerror", "reg:quantileerror")
+                # "quantile_alpha": trial.suggest_float("quantile_alpha", 0.05, 0.95),  # "quantileerror"일 때, 활성화
             }
             # Model
             model_optuna = XGBRegressor(**params)
@@ -116,6 +119,7 @@ def optimizing_parameters(
                 "subsample": trial.suggest_float("subsample", 0.5, 1),
                 "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
                 "random_state": trial.suggest_int("random_state", 42, 42),
+                "loss": "quantile",  # (Default: "quantile" / Optional: "squared_error", "absolute_error")
             }
             # Model
             model_optuna = GradientBoostingRegressor(**params)

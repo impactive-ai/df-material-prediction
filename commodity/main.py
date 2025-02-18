@@ -36,6 +36,7 @@ target_dict = {
     # "Soybeans": "S_1:COM",
 }
 
+
 if data_setting == "Fixed":
     if forecasting_units == "Monthly":
         valid_set_length = 3
