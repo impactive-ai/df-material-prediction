@@ -24,6 +24,7 @@ def converting_params(model_name, df_input):
         )
         recall_best_params["num_leaves"] = int(recall_best_params["num_leaves"])
         recall_best_params["subsample_freq"] = int(recall_best_params["subsample_freq"])
+        recall_best_params["verbose"] = int(recall_best_params["verbose"])
         recall_best_params["random_state"] = int(recall_best_params["random_state"])
     elif model_name == "XGB":
         recall_best_params["n_estimators"] = int(recall_best_params["n_estimators"])
@@ -76,7 +77,7 @@ def recalling_best(
 
     # Model w/ Best Parameter
     if model_name == "LGBM":
-        model = LGBMRegressor(**recall_best_params, verbose=-1)
+        model = LGBMRegressor(**recall_best_params)
         model.fit(x_train, y_train)
     elif model_name == "XGB":
         model = XGBRegressor(**recall_best_params)
@@ -218,7 +219,7 @@ def forecasting_future(
 
     # Model w/ Best Parameter
     if model_name == "LGBM":
-        model = LGBMRegressor(**recall_best_params, verbose=-1)
+        model = LGBMRegressor(**recall_best_params)
         model.fit(x_train, y_train)
     elif model_name == "XGB":
         model = XGBRegressor(**recall_best_params)
@@ -234,7 +235,7 @@ def forecasting_future(
 
     # Bootstraps
     df_ci_result = pd.DataFrame()
-    n_bootstraps = 100  # 100
+    n_bootstraps = 100  # 100  # here
 
     # Prediction(Recursive)
     for iter_idx_pred in range(0, test_set_length):

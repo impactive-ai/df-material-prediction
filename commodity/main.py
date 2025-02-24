@@ -17,7 +17,7 @@ from result import (
 
 warnings.filterwarnings("ignore")
 
-# ----------------- Model Parameters -----------------
+# ----------------- User Parameters -----------------
 forecasting_units = "Monthly"  # ("Monthly", "Weekly")
 data_setting = "Fixed"  # ("Fixed", "Manually")
 result_saving_for_tracking = "False"  # Default: "False"
@@ -39,17 +39,17 @@ target_dict = {
 
 if data_setting == "Fixed":
     if forecasting_units == "Monthly":
-        valid_set_length = 3
+        valid_set_length = 14
         test_set_length = 7
         future_length = 7
     else:
-        valid_set_length = 4
+        valid_set_length = 16
         test_set_length = 8
         future_length = 8
 else:
-    valid_set_length = 3  # fill this as you want
-    test_set_length = 7  # fill this as you want
-    future_length = 7  # fill this as you want
+    valid_set_length = 12  # fill this as you want
+    test_set_length = 12  # fill this as you want
+    future_length = 12  # fill this as you want
 
 
 def loading_data(param: PredictionParameter, forecasting_units):
@@ -104,7 +104,7 @@ def train_and_predict(df, target_name, model_name):
         df_processed,
         y_test_updated,
         test_set_length,
-        200,  # 200
+        100,  # 200
         50,  # 50
     )
     return metric_valid_set, metric_test_set, df_best_params

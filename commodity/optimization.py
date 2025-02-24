@@ -63,7 +63,7 @@ def optimizing_parameters(
                 "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 10),
                 "subsample_freq": trial.suggest_int("subsample_freq", 1, 10),
                 "random_state": trial.suggest_int("random_state", 42, 42),
-                "verbose": -1,
+                "verbose": trial.suggest_int("verbose", -1, -1),
                 # "objective": "quantile",  # (Default: "mse" / Optional: "mae", "quantile")
             }
             # Model
@@ -156,7 +156,7 @@ def optimizing_parameters(
 
         # Model w/ Optuna
         if model_name == "LGBM":
-            model = LGBMRegressor(**best_params, verbose=-1)
+            model = LGBMRegressor(**best_params)
             model.fit(x_train, y_train)
         elif model_name == "XGB":
             model = XGBRegressor(**best_params)
